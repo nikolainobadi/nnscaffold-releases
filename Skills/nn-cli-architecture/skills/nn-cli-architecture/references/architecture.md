@@ -24,7 +24,7 @@ The root is the only type that conforms to `NnRootCommand`. It holds:
 - `static var defaultFactory: any ContextFactory` returning `DefaultContextFactory()`.
 - `static func makeContext() -> CommandContext`, in an extension, building the context from `contextFactory`. It is also the one place that registers process-wide behavior for the run: an `NnOutputWriter` through `NnOutput.register(writer:)` when a seam (a live progress display) must own the terminal, and `NnInterrupt.register` cleanups. `nnscaffold cli init` registers `ChildProcesses.terminateAll(gracePeriod: 2)` in every tool, and it stays whether or not the tool runs child processes yet. It also registers `ProgressAwareOutputWriter` as the `NnOutput` writer and the progress display's `restoreTerminal()` after the child-process cleanup, so the restore runs first. Any further seam that takes over the terminal registers its restore the same way. Cleanups run in reverse registration order when Ctrl+C or SIGTERM arrives under the root's `main()`.
 
-A **group** (`ship`, `config`) is a plain `ParsableCommand` with only `configuration` and its child subcommands. It declares no options and no `run()`.
+A **group** (`ship`, `config`) is a plain `ParsableCommand` with only `configuration` and its child subcommands. It declares no options and no `run()`. A group comes from `nnscaffold cli add-group` and a command from `nnscaffold cli add-command`; both register themselves on their parent.
 
 Subcommands are declared as `extension Root { struct Feature: NnWorkflowCommand { … } }`, or `extension Root.Group { … }` for a grouped command, so the type name reads as its command path.
 
@@ -110,7 +110,7 @@ extension ProjectInspector: @retroactive NnCommandInspector { }
 
 Interpreters, collectors, prompters, formatters, and the command itself stay in the executable: they are the tool's opinions, not reusable logic.
 
-A new library target in the Core package comes from `nnscaffold add-kit`, never from hand edits to the Core manifest; `Workflows/add-command.md` step 4a has the invocation.
+A new library target in the Core package comes from `nnscaffold cli add-kit`, never from hand edits to the Core manifest; `Workflows/add-command.md` step 4a has the invocation.
 
 ## 6. Errors
 
@@ -173,6 +173,7 @@ Rules:
 - Omit any role folder the feature does not need. A passthrough command has no `Collector/`.
 - A file starts in the feature that needed it and moves to `Shared/` only when a second feature uses it. It goes in the `Shared/` of the closest folder that holds every feature using it: the group's folder when they share a group, `Features/` otherwise.
 - A feature is the unit of deletion: removing its folder removes everything it owned.
+- Prompters come from `nnscaffold cli add-prompter`, into `Collector/Prompters/`, `<Group>/Shared/Prompters/`, or `Shared/Prompters/`. Interpreter helpers (`<Name>Detector`, `Validator`, `Classifier`, `Builder`) come from `nnscaffold cli add-helper`, into the feature's `Interpreters/Inspection/`, `Interpreters/Collection/`, or `Interpreters/Shared/`, or into `<Group>/Shared/Interpreters/` or `Shared/Interpreters/`. Each also writes its test file in the mirrored test folder.
 
 ## 8. Testing shape
 
