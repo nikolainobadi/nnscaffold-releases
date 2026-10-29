@@ -81,6 +81,7 @@ extension Root {
 ```
 
 - `makeWorkflow()` is the composition root. Every store, use case, and client is built here from the context, and so is any dependency two stages share (one prompter used by both the collector and a use case); each is injected into the stages that use it. A stage may build its own private helpers from a primitive it was given, such as a collector building its prompters from the picker, when nothing else uses them and they need nothing more.
+- When sibling commands in a group build the same use cases, stores, or clients, `<Group>Assembly` builds them once. It is a caseless enum in `<Group>/Shared/Command/<Group>Assembly.swift` whose static methods take only the `CommandContext` and values `makeWorkflow()` already holds, and return built dependencies. Each `makeWorkflow()` calls it and injects what it returns; nothing else calls it. It builds no stage, reads no interactivity, and is never part of the factory, so a test's factory still replaces every primitive it uses.
 - `<Feature>Workflow` is a struct of five `let` properties conforming to `NnWorkflow`. It has no behavior of its own.
 - `<Feature>Options` groups flags, rejects conflicting pairs in `validate()` with `ValidationError`, and converts to `<Feature>Input` in `makeInput()`. `<Feature>Input` is a plain struct with every field explicit and no ArgumentParser types. Optional fields mean "the caller did not decide this"; the inspection interpreter turns each into a requirement.
 - `<Feature>ResultsFormatter` is a caseless enum with `static func message(for:) -> String?`. It is the only place the final report is composed. Progress or warnings during work are written by the use case that produced them: through the progress display. Text that sets up a prompt (a suggestion to accept, a summary before a confirmation) belongs with that prompt and is written the same way. `NnOutput` routes every write through the registered writer, suppresses writes once an interrupt is being handled, and is the only output `testRun` captures.
@@ -97,6 +98,9 @@ extension Root {
 | Answers | `<Feature>CommandCollector.Answers` (nested) | `Collector/<Feature>CommandCollector.swift`, under `// MARK: - Dependencies` |
 | Context | `<Feature>CommandResolver.Context` (nested) | `Resolver/<Feature>CommandResolver.swift`, under `// MARK: - Dependencies` |
 | Results and summaries | `<Feature>CommandResolver.Results`, `<Feature>CommandResolver.<Case>Summary` | `Resolver/<Feature>CommandResolver.swift`, under `// MARK: - Dependencies` |
+| A payload part used by sibling features, held by each one's Findings and Context | `<Group><Concern>` | `<Group>/Shared/Models/` |
+
+The collection interpreter passes a shared payload part from the findings into the Context unchanged. The Context then carries it, so the resolver never reaches back into findings.
 
 Requirement and Info types sit in `Models/`, owned by the feature, because both interpreters and the collector read them. Nesting them under the collector would make the inspection side depend on the collector, which breaks the stage rules. Every payload is a `Sendable` value type.
 
@@ -164,6 +168,8 @@ Sources/<tool>/
       <Group>.swift                 the group command
       <ChildFeature>/               one folder per child, laid out as above
       Shared/                       what two or more children use, by role subfolder
+        Command/
+          <Group>Assembly.swift     omit when the children share no dependencies
     Shared/                         what features in different groups use, by role subfolder; omit when empty
 ```
 

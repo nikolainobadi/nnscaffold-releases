@@ -28,7 +28,7 @@ Picker, shell, file-system, and progress-display APIs belong to the SwiftPickerK
 1. **One root, one factory.** The `@main` type conforms to `NnRootCommand`, declares `@OptionGroup var interactivity: InteractivityOptions` once, and implements `static var defaultFactory`. Subcommands are declared as extensions of the root (or of a group) so they reach the factory through the root type.
 2. **The factory is an infrastructure seam.** It vends primitives: a shell, a file system, a picker, and a progress display, which `nnscaffold cli init` generates in every tool; an async shell when a command runs shell work concurrently or must cancel it; and any further side-effect seam that every feature could use and whose real or skipping variant depends on interactivity (a path opener). `Root.makeContext()` bundles them into a `CommandContext`, and is the only place that registers an `NnOutput` writer or `NnInterrupt` cleanups. A factory method per feature is a service locator; features assemble themselves from the primitives instead.
 3. **Interactivity is read in exactly one place.** The default factory picks the real or the non-interactive picker from `InteractionMode.current`. The real picker is built with `interruptBehavior: .waitForTermination`, so Ctrl+C at a prompt ends the tool instead of handing the workflow an empty answer. No stage, use case, or context carries an "is interactive" value. Smell: `isInteractive` anywhere outside `DefaultContextFactory`.
-4. **Every substantive command is an `NnWorkflowCommand`.** `makeWorkflow()` is the composition root. From `Root.makeContext()` it builds every store, use case, and client, and every dependency two stages share, and passes each stage the primitives it needs. A stage may build its own private helpers (prompters from the picker, detectors from the file system) when only that stage uses them and they need nothing beyond the primitive it was given. `handleResults` passes the results to `<Feature>ResultsFormatter.message(for:)` and writes the message with `NnOutput.write(_:)`. Nothing else writes the final report.
+4. **Every substantive command is an `NnWorkflowCommand`.** `makeWorkflow()` is the composition root. From `Root.makeContext()` it builds every store, use case, and client, and every dependency two stages share, and passes each stage the primitives it needs. A stage may build its own private helpers (prompters from the picker, detectors from the file system) when only that stage uses them and they need nothing beyond the primitive it was given. When sibling commands in a group build the same use cases, stores, or clients, a `<Group>Assembly` caseless enum in `<Group>/Shared/Command/` may build them; its only inputs are the `CommandContext` and values `makeWorkflow()` already holds, `makeWorkflow()` is its only caller, and it builds no stage and is never part of the factory. `handleResults` passes the results to `<Feature>ResultsFormatter.message(for:)` and writes the message with `NnOutput.write(_:)`. Nothing else writes the final report.
 5. **Options and Input.** Flags live in a `<Feature>Options: ParsableArguments` type that rejects conflicting flags in `validate()` and converts to a plain `<Feature>Input` struct (no ArgumentParser types) through `makeInput()`. The Input reaches the inspection interpreter through its initializer. A command with no flags has neither type.
 6. **No default parameter values under `Sources/`.** Every call site spells every argument. Stored-property defaults on `ParsableArguments` are properties, not parameters, and are allowed.
 7. **Every command has a non-empty `abstract`.** A command whose prompts have no flag equivalent says so in `discussion`.
@@ -47,7 +47,7 @@ The pipeline is inspect → interpret → collect → interpret → resolve. Dec
 
 **Collection interpreter** (`<Feature>CollectionInterpreter`). Resolves each requirement with its answer through `resolve(answer:)`, validates typed answers (throwing `<Feature>Error` on bad input), and builds the `Context` with everything the resolver needs. Smell: a resolver reaching back into findings or requirements.
 
-**Resolve** (`<Feature>CommandResolver`). Does the work through use cases injected in `init`; use-case properties are agent nouns (`releasePublisher`, not `publishRelease`). May prompt only for follow-ups that arise from work already done, such as confirming a suggestion the work produced or a final confirmation. Never prompts for an input the command needed before it started. Such a prompt runs inside the progress display's `suspended { }`. `resolve(context:)` is `async` when a use case it awaits is; concurrent work (a task group) lives inside that use case, not in the resolver. Returns `Results`, usually an enum, and writes nothing. Smell: a use case asking for something a flag could have supplied.
+**Resolve** (`<Feature>CommandResolver`). Does the work through use cases, or a store, injected in `init`. A store is injected directly only when the work is one read or write with no logic around it; once there is a sequence of steps, a second dependency, or progress to report, it becomes a use case. Use-case properties are agent nouns (`releasePublisher`, not `publishRelease`). May prompt only for follow-ups that arise from work already done, such as confirming a suggestion the work produced or a final confirmation. Never prompts for an input the command needed before it started. Such a prompt runs inside the progress display's `suspended { }`. `resolve(context:)` is `async` when a use case it awaits is; concurrent work (a task group) lives inside that use case, not in the resolver. Returns `Results`, usually an enum, and writes nothing. Smell: a use case asking for something a flag could have supplied; a use case whose `run` only forwards one call to a store.
 
 ## Routing
 
@@ -78,57 +78,59 @@ The review checklist, used by [Workflows/review-cli.md](Workflows/review-cli.md)
 **Command**
 
 6. A substantive command that is not an `NnWorkflowCommand`.
-7. A store, use case, or client, or a dependency two stages share, built outside `makeWorkflow()`.
-8. A final report written anywhere but `handleResults`, or composed anywhere but `<Feature>ResultsFormatter`; any `print` or direct standard-error write under `Sources/`.
-9. A `<Feature>Workflow` with behavior beyond its five `let`s.
-10. Conflicting flags not rejected in `validate()`, an `Input` holding ArgumentParser types, or Options and Input on a command with no flags.
-11. An empty `abstract`, or prompts with no flag equivalent and no mention of it in `discussion`.
+7. A store, use case, or client, or a dependency two stages share, built outside `makeWorkflow()` or its group's `<Group>Assembly`.
+8. A `<Group>Assembly` that builds a stage, reads interactivity, takes more than the `CommandContext` and values `makeWorkflow()` holds, or is called from anywhere but `makeWorkflow()`.
+9. A final report written anywhere but `handleResults`, or composed anywhere but `<Feature>ResultsFormatter`; any `print` or direct standard-error write under `Sources/`.
+10. A `<Feature>Workflow` with behavior beyond its five `let`s.
+11. Conflicting flags not rejected in `validate()`, an `Input` holding ArgumentParser types, or Options and Input on a command with no flags.
+12. An empty `abstract`, or prompts with no flag equivalent and no mention of it in `discussion`.
 
 **Inspect**
 
-12. An inspector that changes what the user owns (writing files, moving branches, pushing, prompting), or one that throws for an unreachable source instead of reporting it as a fact.
-13. An inspector that chooses between options, throws for a missing thing instead of returning `nil`, or throws a `<Feature>Error`.
+13. An inspector that changes what the user owns (writing files, moving branches, pushing, prompting), or one that throws for an unreachable source instead of reporting it as a fact.
+14. An inspector that chooses between options, throws for a missing thing instead of returning `nil`, or throws a `<Feature>Error`.
 
 **Inspection interpreter**
 
-14. A blocking fact collected and never thrown on.
-15. Prompt text, picker types, or collector-nested types on the inspection side, including a requirement or `Info` type nested in the collector.
-16. A classifying or throwing type named `*Facts`.
-17. A `*Selector` or "select" name for a choice nobody picks; a computed choice is a `<Field>Detector`.
+15. A blocking fact collected and never thrown on.
+16. Prompt text, picker types, or collector-nested types on the inspection side, including a requirement or `Info` type nested in the collector.
+17. A classifying or throwing type named `*Facts`.
+18. A `*Selector` or "select" name for a choice nobody picks; a computed choice is a `<Field>Detector`.
 
 **Collect**
 
-18. A collector or prompter that reads facts or findings.
-19. Control flow in the collector beyond sequencing prompters, threading answers, and returning early when an answer makes the rest moot; follow-ups belong to the prompter.
-20. An `Answers` field for something that was not asked.
-21. A prompt without `flagHint` in a command that has Options.
-22. A hand-written empty collector instead of `NnPassthroughCollector`.
+19. A collector or prompter that reads facts or findings.
+20. Control flow in the collector beyond sequencing prompters, threading answers, and returning early when an answer makes the rest moot; follow-ups belong to the prompter.
+21. An `Answers` field for something that was not asked.
+22. A prompt without `flagHint` in a command that has Options.
+23. A hand-written empty collector instead of `NnPassthroughCollector`.
 
 **Collection interpreter and resolve**
 
-23. A `Context` missing something the resolver then looks up from findings or requirements.
-24. A resolver or use case prompting for an input the command needed up front.
-25. A resolver that writes output, or a use-case property that is not an agent noun.
+24. A `Context` missing something the resolver then looks up from findings or requirements.
+25. A resolver or use case prompting for an input the command needed up front.
+26. A resolver that writes output, or a use-case property that is not an agent noun.
+27. A use case whose `run` only forwards one call to a store, or a store injected into a resolver for work beyond one read or write.
 
 **Errors, layout, and style**
 
-26. A tool-wide error enum, or an error message that does not say what to do next.
-27. A payload type outside the place `references/architecture.md` section 4 gives it.
-28. A folder holding both loose files and subfolders (apart from a feature's or group's root file), or a file in `Shared/` that only one feature uses.
-29. An interpreter, collector, prompter, or formatter in a library target.
-30. Default parameter values under `Sources/`.
-31. `isX` Bool names.
+28. A tool-wide error enum, or an error message that does not say what to do next.
+29. A payload type outside the place `references/architecture.md` section 4 gives it.
+30. A folder holding both loose files and subfolders (apart from a feature's or group's root file), or a file in `Shared/` that only one feature uses.
+31. An interpreter, collector, prompter, or formatter in a library target.
+32. Default parameter values under `Sources/`.
+33. `isX` Bool names.
 
 **Interruption, concurrency, and progress**
 
-32. An interactive `SwiftPicker` built without `interruptBehavior: .waitForTermination`.
-33. An `NnOutput` writer or `NnInterrupt` cleanup registered anywhere but `Root.makeContext()`.
-34. The `ChildProcesses.terminateAll(gracePeriod:)` cleanup missing from `Root.makeContext()`.
-35. `contextFactory`, `Root.makeContext()`, or `InteractionMode.current` read from `Task.detached`.
-36. A task group or other concurrent work in a resolver body instead of a use case.
-37. An unstructured `Task { }` in a stage or use case used to reach async work from a synchronous body; the signature becomes `async throws` instead.
-38. A `LiveProgressDisplay` or `PlainProgressDisplay` constructed anywhere but `DefaultContextFactory`, or a display whose `restoreTerminal()` is not registered as an `NnInterrupt` cleanup in `Root.makeContext()`.
+34. An interactive `SwiftPicker` built without `interruptBehavior: .waitForTermination`.
+35. An `NnOutput` writer or `NnInterrupt` cleanup registered anywhere but `Root.makeContext()`.
+36. The `ChildProcesses.terminateAll(gracePeriod:)` cleanup missing from `Root.makeContext()`.
+37. `contextFactory`, `Root.makeContext()`, or `InteractionMode.current` read from `Task.detached`.
+38. A task group or other concurrent work in a resolver body instead of a use case.
+39. An unstructured `Task { }` in a stage or use case used to reach async work from a synchronous body; the signature becomes `async throws` instead.
+40. A `LiveProgressDisplay` or `PlainProgressDisplay` constructed anywhere but `DefaultContextFactory`, or a display whose `restoreTerminal()` is not registered as an `NnInterrupt` cleanup in `Root.makeContext()`.
 
 ## Completion
 
-A new project is done when the package builds, `Main/` holds the root, factory, context, and `ProgressAwareOutputWriter`, and the first command follows the add-command workflow. An added command is done when every file in its file table exists in the feature folder, every stage type conforms, `makeWorkflow()` builds every store, use case, client, and shared dependency, the subcommand is registered on its parent, the package builds, and the Don't list passes. Write tests only when the request includes them. Report the files created or changed.
+A new project is done when the package builds, `Main/` holds the root, factory, context, and `ProgressAwareOutputWriter`, and the first command follows the add-command workflow. An added command is done when every file in its file table exists in the feature folder, every stage type conforms, `makeWorkflow()` (or its group's `<Group>Assembly`) builds every store, use case, client, and shared dependency, the subcommand is registered on its parent, the package builds, and the Don't list passes. Write tests only when the request includes them. Report the files created or changed.
