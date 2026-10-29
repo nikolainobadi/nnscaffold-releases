@@ -34,12 +34,12 @@ Show the user, before step 4 runs:
 
 | Flag | Derived from |
 | --- | --- |
-| `<name>` | the command name, kebab-case |
+| `<name>` | the command name, kebab-case. Under a group, prefix it with the group's name, `<group>-<name>`: the types get the prefix (`debug-run` gives `DebugRun`) and the command registers as `<name>` (`run`) |
 | `--parent` | the group or root the command registers on; the tool's name for the root |
 | `--abstract` | the one-line description |
 | `--passthrough` / `--no-passthrough` | `--passthrough` when every requirement in step 1 is always `.known`; otherwise `--no-passthrough` |
 | `--options` / `--no-options` | `--options` when step 2 lists any flag or argument; otherwise `--no-options` |
-| `--inspector-location` | a Core kit name when the inspector's facts belong in a library target (section 5 of `references/architecture.md`); `feature` otherwise. A Kit that does not exist yet is created first with `add-kit` (step 4a) |
+| `--inspector-location` | a Core kit name, short (`ConfigKit`) or full (`<App>ConfigKit`), when the inspector's facts belong in a library target (section 5 of `references/architecture.md`); `feature` otherwise. A Kit that does not exist yet is created first with `add-kit` (step 4a) |
 | `--inspector` | instead of `--inspector-location`, when an inspector the tool already has gathers the facts from step 1 (often the one its sibling commands share). It is built the same way an existing command builds it, so no inspector is generated |
 | `--spec` | the JSON file from step 2b. Pass it whenever step 1 has any rows to fill |
 
@@ -59,18 +59,27 @@ The spec is a JSON file holding the rows of steps 1 and 2. Keep it beside the pl
   "flags": [{ "name": "dryRun", "long": "dry-run", "help": "…" }],
   "requirements": [
     { "name": "bump", "value": "BumpKind", "info": "Void", "prompter": { "name": "BumpKind", "kind": "single" } },
-    { "name": "version", "value": "String", "info": "UnknownVersion" }
+    {
+      "name": "version",
+      "value": "String",
+      "info": { "name": "UnknownVersion", "fields": [{ "name": "latestTag", "type": "String?" }] },
+      "prompter": { "name": "Version", "kind": "input" }
+    }
   ],
   "enums": [{ "name": "BumpKind", "cases": ["major", "minor", "patch"] }],
+  "facts": [{ "name": "tagNames", "type": "[String]" }, { "name": "workingTreeIsClean", "type": "Bool" }],
   "findings": [{ "name": "headCommit", "type": "String" }, { "name": "dryRun", "type": "Bool" }],
   "errors": [{ "name": "notAGitRepository" }, { "name": "invalidVersion", "values": [{ "name": "version", "type": "String" }] }]
 }
 ```
 
-- **Types** are written as in Swift. An optional property's `?` is part of its type, and a flag's Input field is `Bool`. Every Input field needs an empty value for the generated tests, so a non-optional field must be `String`, `Bool`, `Int`, `Date`, or an array.
+- **Types** are written as in Swift. An optional property's `?` is part of its type, and a flag's Input field is `Bool`. Every Input field and fact needs an empty value for the generated tests, so a non-optional one must be `String`, `Bool`, `Int`, `Date`, or an array.
 - **`long`** is the flag's name. Leaving it out uses the property name in kebab-case.
 - **`imports`** names the modules the field types come from. A file also imports `Foundation` when its own fields use `Date`, `URL`, `UUID`, or `Data`.
 - **Requirements** are asked in the order listed. A requirement with a `prompter` gets a new prompter of that kind (`input`, `single`, or `multi`). Its options are filled when the value type is one of the spec's enums. A requirement without a `prompter` gets a placeholder ask; wire it to an existing prompter in step 4b.
+- **`info`** is either a type that already exists, written as in Swift (`Void`, `[String]`), or an object with a `name` and `fields`. The tool writes the object as a struct nested in `<Feature>Requirements`, and every other file names it `<Feature>Requirements.<Name>`.
+- **A prompter's `flagHint`** names the option or flag that has the requirement's name, or the argument as `<name>`. When the input that supplies the value has a different name, set `"flag"` on the prompter to the hint, such as `"<version>"` or `"--executable"`.
+- **`facts`** fill the inspector's `Facts`, with `public` fields and a `public init` when the inspector lives in a Kit, and the facts test factory, which takes every fact. They are ignored with `--inspector`, which generates no inspector.
 - **Enums** become `String, CaseIterable` files in `Models/`. One used as an argument or option type also conforms to `ExpressibleByArgument`.
 - **The spec settles two flags.** Requirements make the command collecting, and arguments, options, or flags make it take Options. Passing `--passthrough` or `--no-options` against them stops the run.
 - **Context and Results** stay out of the spec, as does any conditional skip in the collector. They are written in step 4b.
@@ -135,13 +144,16 @@ The tool creates the stage files from the file table (`Command/`, `Workflow/<Fea
 
 With `--spec`, the tool also fills in from the spec:
 - `<Feature>Options` (properties and `makeInput()`) and `<Feature>Input`;
-- Requirements, Findings, and the collector's `Answers`;
+- Requirements with their nested Info structs, Findings, and the collector's `Answers`;
+- the inspector's `Facts`;
 - the error cases, each with a placeholder message;
 - the enums;
 - the collector's prompter properties and `.ask` calls, in spec order, and each new prompter with its tests;
 - test factories that take every field.
 
-With `--inspector`, the command, workflow, interpreters, and tests name the existing inspector and its `Facts`, and no inspector files are generated.
+With `--inspector`, the command, workflow, interpreters, and tests name the existing inspector and its `Facts`, and no inspector files are generated. The workflow tests call the inspector's existing facts factory from `Tests/<tool>Tests/Shared/`, and no second one is written.
+
+Reusing an inspector puts it in a second feature, so move it to `Shared/` right after generating (`references/architecture.md` section 7): `Extensions/<Inspector>+NnCommandInspector.swift` for a Kit inspector, `Inspector/<Inspector>.swift` otherwise, into the `Shared/` of the closest folder holding both features. The same goes for a spec prompter a second command needs: move it to `<Group>/Shared/Prompters/` or `Shared/Prompters/` with its test file, and change its `info` parameter from one feature's Info type to the plain values it uses (`tools: [DebugTool]`).
 
 When the tool has a test target (`Tests/<tool>Tests/`), the tool also creates the command's test files there, in folders that mirror the feature folder: tests for the inspection interpreter, resolver, formatter, and workflow; for the collection interpreter and collector unless the command is passthrough; for the inspector when it stays in the feature folder; for the command itself when the project has a Core package; and `Shared/TestFactory+<Feature>.swift`. Each test file holds a `makeSUT` and one placeholder test that fails with `nnscaffold: implement <Name>Tests` until it is replaced, so `swift test` stays red until every one is. The same search lists them. Without a test target, no test files are created and the report says so.
 
@@ -153,11 +165,11 @@ Prompters and interpreter helpers are never written by hand:
 
 ```
 nnscaffold cli add-prompter <Value> --feature <Feature|<Group>/Shared|shared> --kind <input|single|multi> (--requirement <field> | --no-requirement)
-nnscaffold cli add-helper <Name> --feature <Feature|<Group>/Shared|shared> --role <detector|validator|classifier|builder> --stage <inspection|collection|shared>
+nnscaffold cli add-helper <Name> --feature <Feature|<Group>/Shared|shared> --role <detector|validator|classifier|builder> --stage <inspection|collection|shared> [--value-type <Type>]
 ```
 
 - **`add-prompter`** reads the `Value` and `Info` types from the requirement field. When the value is a `String`, `CaseIterable` enum, it fills in the options, the `displayName` switch, a `flagHint` naming the Options flag and its values, and the tests. Only the prompt text is left as a placeholder. It prints the `.ask` line to add to the collector.
-- **`add-helper`** writes `enum <Name><Role>` with a stub `static func detect()`, `validate()`, `classify()`, or `make()`, and its test file. A feature's helper goes in `Interpreters/Inspection`, `Interpreters/Collection`, or `Interpreters/Shared` by stage. A shared location takes no `--stage` other than `shared`.
+- **`add-helper`** writes `enum <Name><Role>` with a stub that compiles, and its test file. The stub is `static func detect(_ value: <Type>) -> <Type>?`, `validate(_ value: <Type>) throws`, `classify(_ value: <Type>)`, or `make(_ value: <Type>)`, where `--value-type` sets `<Type>` (`String` when omitted). `Foundation` is imported for `Date`, `URL`, `UUID`, or `Data`; a type from a Kit needs its import added. A feature's helper goes in `Interpreters/Inspection`, `Interpreters/Collection`, or `Interpreters/Shared` by stage. A shared location takes no `--stage` other than `shared`.
 
 Both write the test file in the mirrored test folder.
 
