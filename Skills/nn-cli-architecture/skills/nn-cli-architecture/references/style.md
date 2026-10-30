@@ -66,6 +66,6 @@ Omit a MARK the type does not need.
 
 ## Parameters and models
 
-- No default parameter values under `Sources/`. Every call site spells every argument. Stored-property defaults on `ParsableArguments` are allowed. Test targets and `*Testing` targets may default parameters.
+- Default parameter values follow universal rule 10 in `SKILL.md`. Test targets and `*Testing` targets may default parameters.
 - Payload and model types are `Sendable` structs or enums; `Equatable` when compared in tests or logic; `Codable` when persisted.
 - A `public` model declares an explicit `public init` listing every field; the synthesized initializer is internal and would deny construction across packages.

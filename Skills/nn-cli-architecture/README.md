@@ -1,6 +1,6 @@
 # nn-cli-architecture
 
-A Claude Code skill that teaches how a Swift command-line tool built on [NnArgumentParser](https://github.com/nikolainobadi/NnArgumentParser) is structured: one root command with a dependency factory, every substantive command as an `NnWorkflow` pipeline (inspect, interpret, collect, interpret, resolve), a feature-folder layout, and a file style. It states rules and the smell that breaks each one. It names no particular tool.
+A Claude Code skill that teaches how a Swift command-line tool built on [NnArgumentParser](https://github.com/nikolainobadi/NnArgumentParser) is structured: one root command with a dependency factory, every command as an `NnWorkflow` pipeline (inspect, interpret, collect, interpret, resolve), a feature-folder layout, and a file style. It states rules and the smell that breaks each one. It names no particular tool.
 
 ## Contents
 

@@ -35,7 +35,7 @@ Three types, all in `Main/`, plus any extra seam the factory vends:
 | Type | Role |
 | --- | --- |
 | `ContextFactory` (protocol) | `makeShell()`, `makeFileSystem()`, `makePicker()`, `makeProgressDisplay()`, `makeAsyncShell()` when a command needs it, and a `make<Seam>()` for each extra seam. Infrastructure only. No feature-specific methods. |
-| `DefaultContextFactory` | The production factory. `makePicker()` switches on `InteractionMode.current`: `SwiftPicker(interruptBehavior: .waitForTermination)` when interactive, the non-interactive picker with the `assumeYes` flag otherwise. Waiting for termination is right because the root's `main()` always ends the process on interrupt; the default, `.finishAsCancelled`, would return `nil` from an interrupted prompt and let the workflow carry on. An extra seam with a human-facing effect (opening a path in Finder or the browser) switches the same way, vending a skipping variant when non-interactive. `makeProgressDisplay()` returns `LiveProgressDisplay()` only when the mode is interactive and `TerminalCapabilities.standardErrorIsTerminal` is true, and `PlainProgressDisplay()` otherwise. This is the only place interactivity is read. |
+| `DefaultContextFactory` | The production factory. `makePicker()` switches on `InteractionMode.current`: `SwiftPicker(interruptBehavior: .waitForTermination)` when interactive, the non-interactive picker with the `assumeYes` flag otherwise. Waiting for termination is right because the root's `main()` always ends the process on interrupt; the default, `.finishAsCancelled`, would return `nil` from an interrupted prompt and let the workflow carry on. An extra seam with a human-facing effect (opening a path in Finder or the browser) switches the same way, vending a skipping variant when non-interactive. Its method returns an outcome type in the seam's file (`PathOpenOutcome`), and both variants return the case for what they did (universal rule 3). `makeProgressDisplay()` returns `LiveProgressDisplay()` only when the mode is interactive and `TerminalCapabilities.standardErrorIsTerminal` is true, and `PlainProgressDisplay()` otherwise. |
 | `CommandContext` | A struct of the vended primitives (`shell`, `fileSystem`, `picker`, `progressDisplay`, and `asyncShell` when vended). Built once per command by `Root.makeContext()`. Carries no flags and no interactivity value. |
 
 The factory vends an `AsyncShell` beside the `Shell` only when a command runs shell work concurrently or must cancel it. Synchronous work keeps the `Shell`.
@@ -80,12 +80,13 @@ extension Root {
 }
 ```
 
-- `makeWorkflow()` is the composition root. Every store, use case, and client is built here from the context, and so is any dependency two stages share (one prompter used by both the collector and a use case); each is injected into the stages that use it. A stage may build its own private helpers from a primitive it was given, such as a collector building its prompters from the picker, when nothing else uses them and they need nothing more.
-- When sibling commands in a group build the same use cases, stores, or clients, `<Group>Assembly` builds them once. It is a caseless enum in `<Group>/Shared/Command/<Group>Assembly.swift` whose static methods take only the `CommandContext` and values `makeWorkflow()` already holds, and return built dependencies. Each `makeWorkflow()` calls it and injects what it returns; nothing else calls it. It builds no stage, reads no interactivity, and is never part of the factory, so a test's factory still replaces every primitive it uses.
+- `makeWorkflow()` is where a reader starts: it names every stage the command runs and everything each stage is given.
+- What `makeWorkflow()` builds, and what a stage may build itself, is set by universal rules 5 and 6. A dependency two stages share is, for example, one prompter used by both the collector and a use case.
+- `<Group>Assembly` (universal rule 7) lives in `<Group>/Shared/Command/<Group>Assembly.swift`. Its static methods return built dependencies, which each `makeWorkflow()` injects. Because it is never part of the factory, a test's factory still replaces every primitive it uses.
 - `<Feature>Workflow` is a struct of five `let` properties conforming to `NnWorkflow`. It has no behavior of its own.
-- `<Feature>Options` groups flags, rejects conflicting pairs in `validate()` with `ValidationError`, and converts to `<Feature>Input` in `makeInput()`. `<Feature>Input` is a plain struct with every field explicit and no ArgumentParser types. Optional fields mean "the caller did not decide this"; the inspection interpreter turns each into a requirement.
-- `<Feature>ResultsFormatter` is a caseless enum with `static func message(for:) -> String?`. It is the only place the final report is composed. Progress or warnings during work are written by the use case that produced them: through the progress display. Text that sets up a prompt (a suggestion to accept, a summary before a confirmation) belongs with that prompt and is written the same way. `NnOutput` routes every write through the registered writer, suppresses writes once an interrupt is being handled, and is the only output `testRun` captures.
-- Stage methods may be `async`. `nnscaffold` generates `inspect()` and `resolve(context:)` as synchronous `throws`; a stage that awaits anything changes its signature to `async throws`. Never bridge with `Task { }`: the stage would return before the work finishes and its errors would be lost. The workflow runs on an executor that tolerates blocking, so synchronous shell and file work inside a stage is fine. Concurrent work (a task group) lives inside a use case, which the resolver awaits. Command-scoped state (`contextFactory`, `InteractionMode.current`) is inherited by child tasks but not by `Task.detached`, and reading it there traps.
+- `<Feature>Options` and `<Feature>Input` follow universal rule 9; `validate()` rejects conflicting pairs with `ValidationError`. Every Input field is explicit. Optional fields mean "the caller did not decide this"; the inspection interpreter turns each into a requirement.
+- `<Feature>ResultsFormatter` is a caseless enum with `static func message(for:) -> String?`, called from `handleResults` (universal rule 8). Progress or warnings during work are written by the use case that produced them: through the progress display. Text that sets up a prompt (a suggestion to accept, a summary before a confirmation) belongs with that prompt and is written the same way. `NnOutput` routes every write through the registered writer, suppresses writes once an interrupt is being handled, and is the only output `testRun` captures.
+- Stage methods may be `async`. `nnscaffold` generates `inspect()` and `resolve(context:)` as synchronous `throws`; a stage that awaits anything changes its signature to `async throws`. Never bridge with `Task { }`: the stage would return before the work finishes and its errors would be lost. The workflow runs on an executor that tolerates blocking, so synchronous shell and file work inside a stage is fine. Where concurrent work lives is set by the Resolve stage rule. Command-scoped state is inherited by child tasks but not by `Task.detached` (universal rule 13).
 
 ## 4. Stage payload types and where they live
 
@@ -120,7 +121,7 @@ A new library target in the Core package comes from `nnscaffold cli add-kit`, ne
 
 One error enum per feature, `<Feature>Error: Error, Equatable`, with a `LocalizedError` conformance in an extension. Each message tells the user what to do next, not only what went wrong. It lives in `Features/<Feature>/Workflow/`.
 
-The inspection interpreter throws it for blocking facts; the collection interpreter throws it for invalid answers. The inspector never throws it. There is no tool-wide error enum: a feature's failures travel with the feature when it is added or removed.
+Which stages throw it is set by the stage rules in `SKILL.md`. There is no tool-wide error enum: a feature's failures travel with the feature when it is added or removed.
 
 ## 7. Folder layout
 
@@ -170,6 +171,8 @@ Sources/<tool>/
       Shared/                       what two or more children use, by role subfolder
         Command/
           <Group>Assembly.swift     omit when the children share no dependencies
+        Interpreters/               helpers loose, or split into Inspection/, Collection/, and Shared/
+        Models/
     Shared/                         what features in different groups use, by role subfolder; omit when empty
 ```
 
@@ -180,6 +183,9 @@ Rules:
 - A file starts in the feature that needed it and moves to `Shared/` only when a second feature uses it. It goes in the `Shared/` of the closest folder that holds every feature using it: the group's folder when they share a group, `Features/` otherwise.
 - A feature is the unit of deletion: removing its folder removes everything it owned.
 - Prompters come from `nnscaffold cli add-prompter`, into `Collector/Prompters/`, `<Group>/Shared/Prompters/`, or `Shared/Prompters/`. Interpreter helpers (`<Name>Detector`, `Validator`, `Classifier`, `Builder`) come from `nnscaffold cli add-helper`, into the feature's `Interpreters/Inspection/`, `Interpreters/Collection/`, or `Interpreters/Shared/`, or into `<Group>/Shared/Interpreters/` or `Shared/Interpreters/`. Each also writes its test file in the mirrored test folder.
+- `<Group>/Shared/Interpreters/` and `Shared/Interpreters/` are either loose helpers or split into `Inspection/`, `Collection/`, and `Shared/` subfolders, never a mix. `add-helper` follows the shape already there: loose helpers take only `--stage shared`, and a split folder takes any stage. Split a crowded folder by hand; the tool cannot tell a loose helper's stage from where it sits.
+- A helper's own result type (what a detector returns) is nested in the helper under `// MARK: - Dependencies` and stays in its file.
+- Any other value type that is not a stage payload, such as a value an interpreter builds and hands to its helpers, goes in `Models/` of the feature that uses it. When a second feature uses it, it moves to the `Models/` of the closest `Shared/`, like any other file. If Findings or Context starts holding it, it becomes a payload part under section 4.
 
 ## 8. Testing shape
 
