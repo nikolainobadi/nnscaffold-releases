@@ -100,8 +100,13 @@ extension Root {
 | Context | `<Feature>CommandResolver.Context` (nested) | `Resolver/<Feature>CommandResolver.swift`, under `// MARK: - Dependencies` |
 | Results and summaries | `<Feature>CommandResolver.Results`, `<Feature>CommandResolver.<Case>Summary` | `Resolver/<Feature>CommandResolver.swift`, under `// MARK: - Dependencies` |
 | A payload part used by sibling features, held by each one's Findings and Context | `<Group><Concern>` | `<Group>/Shared/Models/` |
+| Flags several commands share | `<Concern>Options: ParsableArguments`, with `makeInput()` | `Shared/Command/` of the closest folder holding every command that uses it |
+| Their plain values | `<Concern>Input` | same folder as `<Concern>Options` |
+| What the inspection interpreter derives from them | `<Concern>Settings`, held whole by each command's Findings and Context | `Shared/Models/` of the same folder |
 
 The collection interpreter passes a shared payload part from the findings into the Context unchanged. The Context then carries it, so the resolver never reaches back into findings.
+
+A `<Concern>Settings` is built in one place: a shared interpreter helper takes the `<Concern>Input` plus any facts it needs, and every inspection interpreter calls it, so the checks behind those settings (such as a missing git author) live once. When the flags pass through unchanged, the Settings fields copy the Input's; keep the type anyway, so the Input still stops at the inspection interpreter.
 
 Requirement and Info types sit in `Models/`, owned by the feature, because both interpreters and the collector read them. Nesting them under the collector would make the inspection side depend on the collector, which breaks the stage rules. Every payload is a `Sendable` value type.
 
@@ -171,9 +176,17 @@ Sources/<tool>/
       Shared/                       what two or more children use, by role subfolder
         Command/
           <Group>Assembly.swift     omit when the children share no dependencies
+          <Concern>Options.swift    flags the children share; omit when none
+          <Concern>Input.swift
         Interpreters/               helpers loose, or split into Inspection/, Collection/, and Shared/
         Models/
+          <Concern>Settings.swift
     Shared/                         what features in different groups use, by role subfolder; omit when empty
+      Command/
+        <Concern>Options.swift      flags commands in different groups share
+        <Concern>Input.swift
+      Models/
+        <Concern>Settings.swift
 ```
 
 Rules:
@@ -196,5 +209,7 @@ Three kinds of test, in order of preference. Read `TestingReference.md` in the N
 3. **Whole command.** Drive the root with `try await testRun`, passing the test factory vending mock infrastructure, the command's arguments, and the interaction mode explicitly; assert on the captured `NnOutput` output or on what the mocks recorded. Progress written through a display is not captured; the test factory vends `MockProgressDisplay` from the `ConsoleProgressTesting` product, and the test asserts on what it recorded (`trackedTitles`, each activity's `updates` and `outcome`, `notes`). A use-case test injects its own `MockProgressDisplay` the same way. Interrupt cleanups are tested through `testRunCapturingCleanups`, which returns them without running them; run them and assert `terminalWasRestored` on the factory's display.
 
 Tests live in `Tests/<tool>Tests/`, mirroring the path below `Sources/<tool>/`: `Tests/<tool>Tests/Features/<Feature>/`, or `Tests/<tool>Tests/Features/<Group>/<Feature>/` for a grouped command, with the same role subfolders. The test factory and any shared helper live in `Tests/<tool>Tests/Shared/`. Test code may use default parameter values; production code may not.
+
+When commands share a `<Concern>Settings`, the test factory has two helpers for it: one that takes every field, for tests that check those fields, and short ones that fix the fields a test does not care about (`make<Concern>Settings(previewRequested:)`). Tests that do not check the shared values use the short helpers, so adding a field to the settings changes only the factory and the tests that check it.
 
 Tests are written when the request asks for them. A workflow step that mentions tests is not permission to add them.

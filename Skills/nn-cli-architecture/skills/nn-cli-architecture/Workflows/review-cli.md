@@ -18,7 +18,7 @@ Read the code in scope. For each type, decide its role (root, factory, command, 
 
 1. Walk the Don't list in `SKILL.md` against every type in scope, using the roles from step 3.
 2. Check each feature folder against `references/architecture.md` section 7, and each payload type against section 4.
-3. Check each Swift file against `references/style.md`: header, comments, type body, MARK order, nesting, expressions, naming.
+3. Check each Swift file against `references/style.md`: header, comments, type body, MARK order, nesting, expressions, naming. The header check follows the project's convention: a file without a header is a violation only when the project's other Swift files have one.
 4. Tests only when in scope: check their layout and kind against `references/architecture.md` section 8. For test-file internals, defer to the NnArgumentParser skill's `TestingReference.md`.
 
 ## 5. Report

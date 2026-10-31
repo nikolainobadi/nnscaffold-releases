@@ -12,7 +12,7 @@ If there is no `.xcodeproj`, stop the workflow. Tell the user that a new tool is
 
 From the request, fix:
 
-- the tool name: a lowercase letter, then lowercase letters and digits. It becomes the executable product and the package folder.
+- the tool name: lowercase words of letters and digits, each starting with a letter, joined by single hyphens, such as `nnex` or `fetch-tool-cli`. It becomes the executable product and the package folder. The root type `<Root>` is its PascalCase form (`FetchToolCli`), and tests import the module with hyphens turned into underscores (`@testable import fetch_tool_cli`).
 - the abstract: one line for the root command's `--help`.
 - the first command, planned through steps 1 to 2a of `Workflows/add-command.md`.
 
@@ -23,8 +23,10 @@ Ask only for what the request leaves open.
 From the folder holding the `.xcodeproj`, run with every value passed:
 
 ```
-nnscaffold cli init <tool> --abstract "<abstract>" --non-interactive
+nnscaffold cli init <tool> --abstract "<abstract>" --non-interactive [--no-header]
 ```
+
+Pass `--no-header` when the user wants files without the header comment, or when the project's existing Swift files have none. Without it, every file gets a header signed with the git `user.name`, and the command stops if none is set.
 
 It creates and registers in the Xcode project, without linking either to the app target:
 

@@ -4,7 +4,7 @@ How a Swift source file in the tool is laid out and named. Read completely befor
 
 ## Header and comments
 
-- Every Swift file opens with the standard header: file name, module name, and the "Created by" line with author and date. `Package.swift` is exempt.
+- A Swift file opens with the standard header (file name, module name, and the "Created by" line with author and date) when the project's Swift files use one, and with no header when they do not. Match the project. `Package.swift` is exempt.
 - Nothing is written above a declaration except `// MARK:` and `// TODO:`. No `///` documentation, no explanatory `//` comments. The reasoning behind a decision goes in the reply or the plan, not in the source.
 
 ## Type body and extensions

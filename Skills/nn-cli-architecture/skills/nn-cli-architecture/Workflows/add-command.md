@@ -23,7 +23,7 @@ If every requirement is always `.known`, the command uses `NnPassthroughCollecto
 
 ## 2. Options and Input
 
-If the command takes flags: list each flag with its help text, the pairs that conflict (for `validate()`), and the `makeInput()` mapping. Every requirement that a flag can settle names that flag; that is the `flagHint` the collector passes. If the command takes no flags, skip this step and state in `discussion` that the command is interactive.
+If the command takes flags: list each flag with its help text, the pairs that conflict (for `validate()`), and the `makeInput()` mapping. A flag another command already takes with the same meaning goes in the shared `<Concern>Options` (universal rule 9), not in this command's Options. Every requirement that a flag can settle names that flag; that is the `flagHint` the collector passes. If the command takes no flags, skip this step and state in `discussion` that the command is interactive.
 
 ## 2a. Present the plan
 
@@ -49,7 +49,7 @@ When `--parent` names a group that does not exist yet, the plan also shows the `
 
 ## 2b. Write the spec
 
-The spec is a JSON file holding the rows of steps 1 and 2. Keep it beside the plan document, not in the repository. Every section may be left out.
+The spec is a JSON file holding the rows of steps 1 and 2. Keep it beside the plan document, not in the repository. Every section may be left out. A key the tool doesn't know stops the run, naming the key and where it is.
 
 ```json
 {
@@ -119,7 +119,7 @@ Before writing any code, read `references/style.md` completely and `WorkflowRefe
 When `--inspector-location` names a Kit the Core package does not have yet, create it first from the same folder:
 
 ```
-nnscaffold cli add-kit <Name> --[no-]testing-library (--dependency <Kit> ... | --no-dependencies)
+nnscaffold cli add-kit <Name> --[no-]testing-library (--dependency <Kit> ... | --no-dependencies) [--no-header]
 ```
 
 `add-kit` adds the `<App><Name>Kit` library, its `<App><Name>KitTests` target, and with `--testing-library` an `<App><Name>Testing` library to `<App>Core/Package.swift`, writes a starter file for each, and adds the test bundle to the `AllUnitTests` test plan when the folder has an `.xcodeproj`. Pass `--dependency` once per existing Kit the new one uses (`FileKit` or the full name), or `--no-dependencies`; the test target picks up each dependency's `Testing` counterpart on its own. It does not link the Kit to the tool's executable target: add `<App><Name>Kit` to that target's dependencies in the tool's `Package.swift`. Never add Kit targets to the Core manifest by hand.
@@ -127,7 +127,7 @@ nnscaffold cli add-kit <Name> --[no-]testing-library (--dependency <Kit> ... | -
 When `--parent` names a group that does not exist yet, create it first:
 
 ```
-nnscaffold cli add-group <name> --parent <parent> --abstract "<abstract>"
+nnscaffold cli add-group <name> --parent <parent> --abstract "<abstract>" [--no-header]
 ```
 
 `add-group` writes the group command (a `ParsableCommand` with only `configuration`) and registers it on its parent. Never write a group by hand.
@@ -135,10 +135,10 @@ nnscaffold cli add-group <name> --parent <parent> --abstract "<abstract>"
 From the repository root (the folder holding the `.xcodeproj`), run the invocation from step 2a with every flag passed:
 
 ```
-nnscaffold cli add-command <name> --parent <parent> --abstract "<abstract>" --[no-]passthrough --[no-]options (--inspector-location <feature|CoreKitName> | --inspector <TypeName>) --spec <file.json>
+nnscaffold cli add-command <name> --parent <parent> --abstract "<abstract>" --[no-]passthrough --[no-]options (--inspector-location <feature|CoreKitName> | --inspector <TypeName>) --spec <file.json> [--no-header]
 ```
 
-A missing flag makes the tool prompt, and without a terminal it fails. Add `--preview` to see the files and the parent edit without writing. If `nnscaffold` is not installed, stop and tell the user to install it with `brew install nikolainobadi/nn/nnscaffold`; never install it yourself or write the skeleton files by hand.
+A missing flag makes the tool prompt, and without a terminal it fails. Add `--preview` to see the files and the parent edit without writing. Pass `--no-header` to every `nnscaffold` command in this workflow when the project's existing Swift files have no header comment (`references/style.md`). If `nnscaffold` is not installed, stop and tell the user to install it with `brew install nikolainobadi/nn/nnscaffold`; never install it yourself or write the skeleton files by hand.
 
 The tool creates the stage files from the file table (`Command/`, `Workflow/<Feature>Workflow.swift`, `Workflow/<Feature>Error.swift` as an empty enum with its `LocalizedError` extension, the inspector or its `Extensions/` conformance, `Models/`, both interpreters, `Collector/` and its models, `Resolver/` and its models, `Formatter/`), adds `<Feature>Options` and `<Feature>Input` with `--options`, and registers the subcommand on the parent's `configuration`. Each stage body is a `fatalError("nnscaffold: implement …")` stub; the tool prints a search that lists them.
 
@@ -164,8 +164,8 @@ In this order: what the spec did not cover (error messages, conflicting flags in
 Prompters and interpreter helpers are never written by hand:
 
 ```
-nnscaffold cli add-prompter <Value> --feature <Feature|<Group>/Shared|shared> --kind <input|single|multi> (--requirement <field> | --no-requirement)
-nnscaffold cli add-helper <Name> --feature <Feature|<Group>/Shared|shared> --role <detector|validator|classifier|builder> --stage <inspection|collection|shared> [--value-type <Type>]
+nnscaffold cli add-prompter <Value> --feature <Feature|<Group>/Shared|shared> --kind <input|single|multi> (--requirement <field> | --no-requirement) [--no-header]
+nnscaffold cli add-helper <Name> --feature <Feature|<Group>/Shared|shared> --role <detector|validator|classifier|builder> --stage <inspection|collection|shared> [--value-type <Type>] [--no-header]
 ```
 
 - **`add-prompter`** reads the `Value` and `Info` types from the requirement field. When the value is a `String`, `CaseIterable` enum, it fills in the options, the `displayName` switch, a `flagHint` naming the Options flag and its values, and the tests. Only the prompt text is left as a placeholder. It prints the `.ask` line to add to the collector.
@@ -181,7 +181,7 @@ Run `swift build`. Walk the Don't list in `SKILL.md` against the new feature fol
 
 ## Adding a flag to an existing command
 
-Classify the flag first by universal rule 14 in `SKILL.md`, then touch only the files its kind lists.
+Check first whether another command already takes this flag with the same meaning. If one does, the flag belongs in a shared `<Concern>Options` (universal rule 9): add it there, or create the group and move the existing copy into it, then add the derived field to `<Concern>Settings` and read it where it is used. Otherwise, classify the flag by universal rule 14 in `SKILL.md`, then touch only the files its kind lists.
 
 - **Mode** (it changes which inspector runs or which set of questions the command has): stop. Plan a new command with steps 1 to 5, under a group with its sibling when they belong together.
 - **One-step value** (no interpreter asks for it; one step of the work uses it): `<Feature>Options`, with its `validate()` when the flag conflicts with another; `<Feature>Input`; the inspection interpreter's handoff into `<Feature>Findings`; the collection interpreter's handoff into the resolver's `Context`; and the resolver or use case that uses it. A passthrough command has no collection interpreter, and its Context is its Findings.
