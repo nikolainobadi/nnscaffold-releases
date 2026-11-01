@@ -16,8 +16,9 @@ A Claude Code skill that teaches how a Swift command-line tool built on [NnArgum
 - Where every stage type lives and what each stage may and may not do.
 - The folder layout for `Main/` and `Features/<Feature>/`.
 - File style: header, MARK order, nesting, naming, no default parameters, no inline comments.
-- Three procedures: starting a new CLI, adding a command to an existing one, and reviewing an existing tool.
+- Four procedures: starting a new CLI, adding a command to an existing one, reviewing an existing tool, and catching a tool up after the architecture changes.
 - A numbered review checklist (the Don't list), one item per rule's smell.
+- A changelog of rule and generated-output changes, and a marker file in each tool recording the last change it applied.
 
 It does not restate the NnArgumentParser API. The skill routes to the NnArgumentParser skill for signatures.
 
@@ -40,6 +41,7 @@ The skill activates on its own for requests about Swift CLI structure. Examples:
 - "Add a `prune` command to this tool" → produces the stage-plan table, the file table, then the files.
 - "Where should the version detector live?" → answers from `references/architecture.md` and cites the rule.
 - "Review this command against the architecture" → follows `Workflows/review-cli.md`: maps each type to its stage, walks the Don't list, the folder layout, and the file style, and reports only violations (where, rule, what, fix). It edits nothing.
+- "Catch this CLI up to the latest nn-cli-architecture" or "What needs refactoring after the recent nnscaffold changes?" → follows `Workflows/catch-up.md`: reads the tool's `.nn-cli-architecture` marker, takes the changelog entries newer than the version it holds, and reports the code each one affects, grouped by entry. It updates the marker only when you say the refactor is done.
 
 Expected results are files in the tool's feature folder, a stage-plan table in the reply, and a build. Tests are added only when asked for.
 
@@ -53,6 +55,8 @@ Expected results are files in the tool's feature folder, a stage-plan table in t
 | `skills/nn-cli-architecture/Workflows/new-cli-project.md` | Procedure for a new tool |
 | `skills/nn-cli-architecture/Workflows/add-command.md` | Procedure for a new or reshaped command, with an illustrative file table |
 | `skills/nn-cli-architecture/Workflows/review-cli.md` | Review-only procedure for auditing a tool, feature, or file, with the report format |
+| `skills/nn-cli-architecture/Workflows/catch-up.md` | Refactor list for a tool, scoped to the changelog entries it has not applied |
+| `skills/nn-cli-architecture/references/changelog.md` | One entry per change to the rules or to `nnscaffold`'s generated output, grouped by release version |
 | `.claude-plugin/plugin.json` | Plugin manifest |
 
 ## Dependencies
@@ -63,3 +67,5 @@ Expected results are files in the tool's feature folder, a stage-plan table in t
 ## Maintenance
 
 The source lives at `nnscaffold/Skills/nn-cli-architecture/` in the CodeScaffold repository. It is published with each nnscaffold release: `nnex ship tool` sets `version` in `plugin.json` to the release version, copies the skill into the public releases repo, and pins the `nn-swift-skills` marketplace entry to the release tag. When the NnArgumentParser workflow API changes, update the stage rules here in the same pass as that skill's `WorkflowReference.md`.
+
+Every change to the rules or to what `nnscaffold` generates adds an entry under `## [Unreleased]` in `references/changelog.md` in the same change. Before each nnscaffold release, move those entries into a new `## [<version>] - <date>` section directly below `## [Unreleased]`, by hand. Each tool's `.nn-cli-architecture` file holds the skill version it was last brought up to: `Workflows/new-cli-project.md` writes it for a new tool, and `Workflows/catch-up.md` updates it after a catch-up.

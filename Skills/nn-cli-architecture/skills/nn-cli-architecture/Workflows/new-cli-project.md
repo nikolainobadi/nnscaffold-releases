@@ -14,7 +14,7 @@ From the request, fix:
 
 - the tool name: lowercase words of letters and digits, each starting with a letter, joined by single hyphens, such as `nnex` or `fetch-tool-cli`. It becomes the executable product and the package folder. The root type `<Root>` is its PascalCase form (`FetchToolCli`), and tests import the module with hyphens turned into underscores (`@testable import fetch_tool_cli`).
 - the abstract: one line for the root command's `--help`.
-- the first command, planned through steps 1 to 2a of `Workflows/add-command.md`.
+- the first command, planned through steps 1 to 2a of `Workflows/add-command.md`: its spec and behavior notes. Its `--preview` file list comes after step 3 creates the tool.
 
 Ask only for what the request leaves open.
 
@@ -23,10 +23,10 @@ Ask only for what the request leaves open.
 From the folder holding the `.xcodeproj`, run with every value passed:
 
 ```
-nnscaffold cli init <tool> --abstract "<abstract>" --non-interactive [--no-header]
+nnscaffold cli init <tool> --abstract "<abstract>" --non-interactive [--header]
 ```
 
-Pass `--no-header` when the user wants files without the header comment, or when the project's existing Swift files have none. Without it, every file gets a header signed with the git `user.name`, and the command stops if none is set.
+Files get no header comment unless you pass `--header`. Pass it when the user wants headers, or when the project's existing Swift files have them. With it, every file gets a header signed with the git `user.name`, and the command stops if none is set.
 
 It creates and registers in the Xcode project, without linking either to the app target:
 
@@ -37,13 +37,15 @@ It then installs the tool's skills at project scope, into the project's `.claude
 
 If the command fails, report its error and stop. Do not create or repair these files by hand.
 
+Then write the tool's architecture marker, `<tool>/.nn-cli-architecture`, holding this skill's version (the `version` in `../../.claude-plugin/plugin.json`, resolved from the directory containing `SKILL.md`) followed by a newline. A tool created now starts up to date; `Workflows/catch-up.md` reads the marker later.
+
 ## 4. First command
 
 Follow `Workflows/add-command.md` completely for the first command, with `--parent <tool>`. Run it from the same folder; it registers the command in the root's `configuration`.
 
 ## 5. Tests (only when requested)
 
-`init` already created `MockContextFactory.swift` and `<Root>TestRunner.swift`, and the first command's workflow left its placeholder tests. When the request asks for tests, replace the placeholders, starting with one `testRun` test that runs the first command with `--help` or its happy path through `<Root>TestRunner` and `MockContextFactory`. Follow `TestingReference.md` in the NnArgumentParser skill.
+`init` already created `MockContextFactory.swift` and `<Root>TestRunner.swift`, and the first command's workflow left its test files with only a `makeSUT`. When the request asks for tests, write them there, starting with one `testRun` test that runs the first command with `--help` or its happy path through `<Root>TestRunner` and `MockContextFactory`. Follow `TestingReference.md` in the NnArgumentParser skill.
 
 ## 6. Build and report
 

@@ -1,6 +1,6 @@
 ---
 name: nn-cli-architecture
-description: Architecture reference for Swift command-line tools built on NnArgumentParser. Covers the NnRootCommand root with a dependency factory, the NnWorkflow inspect/collect/resolve pipeline that every command follows, where each stage type lives, the feature folder layout, and file style. USE WHEN creating a new Swift CLI, adding or reshaping a command in an existing one, planning or writing an implementation plan for a new command, subcommand, group, or feature of a Swift CLI, deciding where a type or file belongs in a command-line tool, reviewing a Swift CLI's structure, setting up CLI tests, or answering how a command built on NnArgumentParser or NnWorkflow should be organized. Not for the NnArgumentParser API itself (its own skill owns that), SwiftUI apps, or Swift packages that are not command-line tools.
+description: Architecture reference for Swift command-line tools built on NnArgumentParser. Covers the NnRootCommand root with a dependency factory, the NnWorkflow inspect/collect/resolve pipeline that every command follows, where each stage type lives, the feature folder layout, and file style. USE WHEN creating a new Swift CLI, adding or reshaping a command in an existing one, planning or writing an implementation plan for a new command, subcommand, group, or feature of a Swift CLI, deciding where a type or file belongs in a command-line tool, reviewing a Swift CLI's structure, catching up an existing CLI after changes to this architecture or to nnscaffold (what needs refactoring now), setting up CLI tests, or answering how a command built on NnArgumentParser or NnWorkflow should be organized. Not for the NnArgumentParser API itself (its own skill owns that), SwiftUI apps, or Swift packages that are not command-line tools.
 ---
 
 # nn-cli-architecture
@@ -60,11 +60,14 @@ The pipeline is inspect → interpret → collect → interpret → resolve. Dec
 | --- | --- |
 | No `Package.swift` with an executable target depending on NnArgumentParser, or the request is to start a tool | [Workflows/new-cli-project.md](Workflows/new-cli-project.md) before creating any file |
 | A root command exists and the request adds a flag or argument to an existing command | the **Adding a flag to an existing command** section of [Workflows/add-command.md](Workflows/add-command.md) before changing any file |
+| A root command exists and the request adds a use case to an existing command | the **Adding a use case to an existing command** section of [Workflows/add-command.md](Workflows/add-command.md) before changing any file |
 | A root command exists and the request adds or reshapes a command, or asks for a plan to do so | [Workflows/add-command.md](Workflows/add-command.md) before planning or creating any file, including a plan document |
+| A change to this skill's rules or to what `nnscaffold` generates is being made | [references/changelog.md](references/changelog.md), then add its entry under `## [Unreleased]` in the same change |
 | A file is about to be created or moved | the **Folder layout** and **Stage payload types** sections of [references/architecture.md](references/architecture.md) |
 | A Swift file is about to be written | [references/style.md](references/style.md) |
 | A test is about to be written | the **Testing shape** section of [references/architecture.md](references/architecture.md) |
-| The request is to review, audit, or validate an existing tool, feature, or file against this architecture | [Workflows/review-cli.md](Workflows/review-cli.md) before reading the code under review |
+| The request is to bring an existing tool up to date with changes to this architecture or to `nnscaffold`, or to list what needs refactoring after them | [Workflows/catch-up.md](Workflows/catch-up.md) before reading the tool's code |
+| The request is to review, audit, or validate an existing tool, feature, or file against this architecture, with no mention of recent changes | [Workflows/review-cli.md](Workflows/review-cli.md) before reading the code under review |
 | A "where does this go" or "is this allowed" question with no change requested | answer from this file and [references/architecture.md](references/architecture.md); cite the rule and the smell |
 
 If a routed file cannot be read, say which one and what it governs, and stop the step that depended on it. Continue the steps that do not.
