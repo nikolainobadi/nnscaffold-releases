@@ -266,4 +266,6 @@ Each use case and its test file go in the feature's `UseCases/` folder and its m
 
 When all three hold, the run adds every new property, `init` parameter, construction argument, and `makeSUT` parameter, plus `let context = <Root>.makeContext()` at the top of `makeWorkflow()` when a new dependency reads `context` and the command has no such line, and an `import` in the command file for each spec module it doesn't import yet when a new use case has dependencies. Otherwise it changes none of them and prints the lines to add, grouped by file. Whitespace counts, so even a reformatted line takes the print path.
 
+A new dependency is built once (universal rule 5) when its `name` and `from` match another new use case's or an argument already in `makeWorkflow()`. An existing `let <name> = <from>` is reused. An inline `<name>: <from>` argument becomes a `let` before `return .init(`, and every place that built it passes `<name>`. A `from` built under a different name, or a `let <name>` that holds a different expression, stays inline. On the print path, the `let` and the arguments to replace are printed first.
+
 Then write each use case's method body and call it from the resolver, and run step 5 against the feature folder.
