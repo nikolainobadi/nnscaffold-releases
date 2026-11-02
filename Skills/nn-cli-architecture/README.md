@@ -18,6 +18,7 @@ A Claude Code skill that teaches how a Swift command-line tool built on [NnArgum
 - File style: header, MARK order, nesting, naming, no default parameters, no inline comments.
 - Four procedures: starting a new CLI, adding a command to an existing one, reviewing an existing tool, and catching a tool up after the architecture changes.
 - A numbered review checklist (the Don't list), one item per rule's smell.
+- A flow file per command (`Flows/<command path>.md`): a short plain-English account of what the command does, what it asks, and when it stops, with a generated test that keeps one file per command.
 - A changelog of rule and generated-output changes, and a marker file in each tool recording the last change it applied.
 
 It does not restate the NnArgumentParser API. The skill routes to the NnArgumentParser skill for signatures.
@@ -43,6 +44,8 @@ The skill activates on its own for requests about Swift CLI structure. Examples:
 - "Review this command against the architecture" → follows `Workflows/review-cli.md`: maps each type to its stage, walks the Don't list, the folder layout, and the file style, and reports only violations (where, rule, what, fix). It edits nothing.
 - "Catch this CLI up to the latest nn-cli-architecture" or "What needs refactoring after the recent nnscaffold changes?" → follows `Workflows/catch-up.md`: reads the tool's `.nn-cli-architecture` marker, takes the changelog entries newer than the version it holds, and reports the code each one affects, grouped by entry. It updates the marker only when you say the refactor is done.
 
+- "Add flow files to this CLI" → follows **Adding flow files to an existing tool** in `references/flow-format.md`: runs `nnscaffold cli add-flow-tests`, then writes a flow file for each command `swift test` lists.
+
 Expected results are files in the tool's feature folder, a stage-plan table in the reply, and a build. Tests are added only when asked for.
 
 ## Files
@@ -56,6 +59,7 @@ Expected results are files in the tool's feature folder, a stage-plan table in t
 | `skills/nn-cli-architecture/Workflows/add-command.md` | Procedure for a new or reshaped command, with an illustrative file table |
 | `skills/nn-cli-architecture/Workflows/review-cli.md` | Review-only procedure for auditing a tool, feature, or file, with the report format |
 | `skills/nn-cli-architecture/Workflows/catch-up.md` | Refactor list for a tool, scoped to the changelog entries it has not applied |
+| `skills/nn-cli-architecture/references/flow-format.md` | Flow file location, template, rules, how to trace a command into one, an example, and the steps for adding flow files to an existing tool |
 | `skills/nn-cli-architecture/references/changelog.md` | One entry per change to the rules or to `nnscaffold`'s generated output, grouped by release version |
 | `.claude-plugin/plugin.json` | Plugin manifest |
 

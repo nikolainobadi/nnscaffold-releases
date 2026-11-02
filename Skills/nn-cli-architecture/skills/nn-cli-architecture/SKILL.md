@@ -1,6 +1,6 @@
 ---
 name: nn-cli-architecture
-description: Architecture reference for Swift command-line tools built on NnArgumentParser. Covers the NnRootCommand root with a dependency factory, the NnWorkflow inspect/collect/resolve pipeline that every command follows, where each stage type lives, the feature folder layout, and file style. USE WHEN creating a new Swift CLI, adding or reshaping a command in an existing one, planning or writing an implementation plan for a new command, subcommand, group, or feature of a Swift CLI, deciding where a type or file belongs in a command-line tool, reviewing a Swift CLI's structure, catching up an existing CLI after changes to this architecture or to nnscaffold (what needs refactoring now), setting up CLI tests, or answering how a command built on NnArgumentParser or NnWorkflow should be organized. Not for the NnArgumentParser API itself (its own skill owns that), SwiftUI apps, or Swift packages that are not command-line tools.
+description: Architecture reference for Swift command-line tools built on NnArgumentParser. Covers the NnRootCommand root with a dependency factory, the NnWorkflow inspect/collect/resolve pipeline that every command follows, where each stage type lives, the feature folder layout, and file style. USE WHEN creating a new Swift CLI, adding or reshaping a command in an existing one, planning or writing an implementation plan for a new command, subcommand, group, or feature of a Swift CLI, deciding where a type or file belongs in a command-line tool, reviewing a Swift CLI's structure, catching up an existing CLI after changes to this architecture or to nnscaffold (what needs refactoring now), writing or reviewing a command's flow file (Flows/*.md) or adding flow files to an existing CLI, setting up CLI tests, or answering how a command built on NnArgumentParser or NnWorkflow should be organized. Not for the NnArgumentParser API itself (its own skill owns that), SwiftUI apps, or Swift packages that are not command-line tools.
 ---
 
 # nn-cli-architecture
@@ -66,6 +66,7 @@ The pipeline is inspect → interpret → collect → interpret → resolve. Dec
 | A file is about to be created or moved | the **Folder layout** and **Stage payload types** sections of [references/architecture.md](references/architecture.md) |
 | A Swift file is about to be written | [references/style.md](references/style.md) |
 | A test is about to be written | the **Testing shape** section of [references/architecture.md](references/architecture.md) |
+| A flow file is about to be written, updated, or reviewed, or the request adds flow files to an existing tool | [references/flow-format.md](references/flow-format.md) |
 | The request is to bring an existing tool up to date with changes to this architecture or to `nnscaffold`, or to list what needs refactoring after them | [Workflows/catch-up.md](Workflows/catch-up.md) before reading the tool's code |
 | The request is to review, audit, or validate an existing tool, feature, or file against this architecture, with no mention of recent changes | [Workflows/review-cli.md](Workflows/review-cli.md) before reading the code under review |
 | A "where does this go" or "is this allowed" question with no change requested | answer from this file and [references/architecture.md](references/architecture.md); cite the rule and the smell |
@@ -143,6 +144,10 @@ The review checklist, used by [Workflows/review-cli.md](Workflows/review-cli.md)
 42. An unstructured `Task { }` in a stage or use case used to reach async work from a synchronous body; the signature becomes `async throws` instead.
 43. A `LiveProgressDisplay` or `PlainProgressDisplay` constructed anywhere but `DefaultContextFactory`, or a display whose `restoreTerminal()` is not registered as an `NnInterrupt` cleanup in `Root.makeContext()`.
 
+**Flow files** (`references/flow-format.md`)
+
+44. A leaf command without `Flows/<command path>.md`, a flow file with no command, or a flow file whose steps, questions, stops, or Code line disagree with the code.
+
 ## Completion
 
-A new project is done when the package builds, `Main/` holds the root, factory, context, and `ProgressAwareOutputWriter`, and the first command follows the add-command workflow. An added command is done when every file in its file table exists in the feature folder, every stage type conforms, `makeWorkflow()` (or its group's `<Group>Assembly`) builds every store, use case, client, and shared dependency, the subcommand is registered on its parent, the package builds, and the Don't list passes. Write tests only when the request includes them. Report the files created or changed.
+A new project is done when the package builds, `Main/` holds the root, factory, context, and `ProgressAwareOutputWriter`, and the first command follows the add-command workflow. An added command is done when every file in its file table exists in the feature folder, every stage type conforms, `makeWorkflow()` (or its group's `<Group>Assembly`) builds every store, use case, client, and shared dependency, the subcommand is registered on its parent, the package builds, the Don't list passes, and its flow file in `Flows/` describes what was built (add-command step 6). Write tests only when the request includes them. Report the files created or changed.

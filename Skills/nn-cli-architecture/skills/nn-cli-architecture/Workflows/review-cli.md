@@ -8,7 +8,7 @@ Decide what is under review: the whole tool, one feature folder, one group, or o
 
 ## 2. Read the rules
 
-Read `references/architecture.md` completely, and `references/style.md` completely. The universal rules, stage rules, and Don't list are already in `SKILL.md`.
+Read `references/architecture.md` completely, `references/style.md` completely, and `references/flow-format.md` completely. The universal rules, stage rules, and Don't list are already in `SKILL.md`.
 
 ## 3. Map the code onto the stages
 
@@ -20,6 +20,7 @@ Read the code in scope. For each type, decide its role (root, factory, command, 
 2. Check each feature folder against `references/architecture.md` section 7, and each payload type against section 4.
 3. Check each Swift file against `references/style.md`: header, comments, type body, MARK order, nesting, expressions, naming. The header check follows the project's convention: a file without a header is a violation only when the project's other Swift files have one.
 4. Tests only when in scope: check their layout and kind against `references/architecture.md` section 8. For test-file internals, defer to the NnArgumentParser skill's `TestingReference.md`.
+5. Flow files: each leaf command in scope has `Flows/<command path>.md`, and it matches the code. Compare its steps, questions, stops, and Code line against the files `references/flow-format.md` traces them from, and check it against that file's rules.
 
 ## 5. Report
 
@@ -32,7 +33,7 @@ One entry per violation:
 - **What**: one sentence naming the violation by role.
 - **Fix**: one or two sentences describing the change in words.
 
-Order entries by stage (root and dependencies, command, inspect, inspection interpreter, collect, collection interpreter, resolve, then errors, layout, style, interruption, concurrency, and progress, tests), and by file within a stage. Group repeats of one violation (a missing header in twelve files) into a single entry with the file list. If nothing in scope fails, say so in one sentence.
+Order entries by stage (root and dependencies, command, inspect, inspection interpreter, collect, collection interpreter, resolve, then errors, layout, style, interruption, concurrency, and progress, tests, flow files), and by file within a stage. Group repeats of one violation (a missing header in twelve files) into a single entry with the file list. If nothing in scope fails, say so in one sentence.
 
 ## Constraints
 

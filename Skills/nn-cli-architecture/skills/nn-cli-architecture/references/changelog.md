@@ -19,6 +19,20 @@ An entry that relaxes a rule says so under **Changed**; its **Behind when** name
 
 ## [Unreleased]
 
+### Commands get flow files
+
+- **Changed**: every leaf command now has a plain-English flow file at `<tool>/Flows/<command path>.md`, in the format of `references/flow-format.md`. A generated `FlowFilesTests` test fails when a command has no flow file or a flow file has no command. Add-command writes the flow file as its new step 6. Before, commands had no written explanation outside their code.
+- **Rules**: `references/flow-format.md`; `references/architecture.md` sections 7 and 8; `Workflows/add-command.md` step 6; `Workflows/review-cli.md` step 4; `SKILL.md` Don't list item 44 and **Completion**.
+- **Generated output**: `nnscaffold cli init` now writes `Tests/<tool>Tests/Main/FlowFilesTests.swift`. A new command, `nnscaffold cli add-flow-tests`, writes the same file into an existing tool.
+- **Behind when**: the tool has no `Tests/<tool>Tests/Main/FlowFilesTests.swift`, or no `Flows/` folder. The fix is **Adding flow files to an existing tool** in `references/flow-format.md`: run `nnscaffold cli add-flow-tests`, then write every flow file `swift test` lists, in one sitting.
+
+### add-command reuses only shared facts factories
+
+- **Changed**: with `--inspector`, `add-command` now looks for the inspector's facts factory only in `Tests/<tool>Tests/Shared/`, and writes a new `make<Feature>Facts()` there when none is found. Before, it searched every test file, so it could pick a `private` helper inside another feature's tests, and the generated workflow test failed to compile.
+- **Rules**: `Workflows/add-command.md` **4a. Generate** (the workflow tests call the inspector's existing facts factory from `Tests/<tool>Tests/Shared/`).
+- **Generated output**: `nnscaffold cli add-command` with `--inspector`: `<Feature>WorkflowTests.swift`, and `Shared/TestFactory+<Feature>.swift` when no shared factory exists.
+- **Behind when**: a `<Feature>WorkflowTests.swift` calls a facts factory that isn't declared in `Tests/<tool>Tests/Shared/`, which shows up as `cannot find '<name>' in scope` when the tests build.
+
 ### add-use-case builds a shared dependency once
 
 - **Changed**: `add-use-case` now builds a dependency once when its `name` and `from` match an argument already in `makeWorkflow()` or another new use case's. It reuses an existing `let <name> = <from>`, or turns the inline argument into a `let` before `return .init(` and passes `<name>` everywhere. Before, it passed its own copy of the expression, which broke universal rule 5. This replaces the "`add-use-case` doesn't hoist" note in **Shared dependencies built once**.
