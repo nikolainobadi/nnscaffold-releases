@@ -25,6 +25,8 @@ Decide every row before any file. Each decision is written once: what the spec c
 
 If every requirement is always `.known`, the command uses `NnPassthroughCollector` and `NnPassthroughCollectionInterpreter<Findings>`, its Context is its Findings (the spec has no `context`), and it has no `Collector/` folder.
 
+If inspection makes network calls (`git fetch`, `gh`, an API), plan to wrap the inspector in `NnTrackedInspector`, and put the message it shows in the behavior notes. Step 4b has the edits.
+
 ## 2. Options and Input
 
 If the command takes flags: write each argument, option, and flag into the spec with its help text; the generated `makeInput()` maps them. The behavior notes list only the pairs that conflict (for `validate()`). A flag another command already takes with the same meaning goes in the shared `<Concern>Options` (universal rule 9), not in this command's Options; the spec includes that group through `optionGroups`. Every requirement that a flag can settle names that flag; that is the `flagHint` the collector passes, and the spec sets it with `"flag"` when the names differ. If the command takes no flags, skip this step and state in `discussion` that the command is interactive.
@@ -204,7 +206,7 @@ With `--spec`, the tool also fills in from the spec:
 - the collector's prompter properties and `.ask` calls, in spec order, and each new prompter with its tests; an existing prompter is asked but not created;
 - test factories that take every field.
 
-With `--inspector`, the command, workflow, interpreters, and tests name the existing inspector and its `Facts`, and no inspector files are generated. The workflow tests call the inspector's existing facts factory from `Tests/<tool>Tests/Shared/`, and no second one is written.
+With `--inspector`, the command, workflow, interpreters, and tests name the existing inspector and its `Facts`, and no inspector files are generated. The workflow tests call the inspector's existing facts factory from `Tests/<tool>Tests/Shared/`, and no second one is written. An inspector another command wraps in `NnTrackedInspector` is copied without the wrapper, so make the step 4b edits if the new command should show progress too.
 
 Reusing an inspector puts it in a second feature, so move it to `Shared/` right after generating (`references/architecture.md` section 7): `Extensions/<Inspector>+NnCommandInspector.swift` for a Kit inspector, `Inspector/<Inspector>.swift` otherwise, into the `Shared/` of the closest folder holding both features. The same goes for a spec prompter a second command needs: move it to `<Group>/Shared/Prompters/` or `Shared/Prompters/` with its test file, and change its `info` parameter from one feature's Info type to the plain values it uses (`tools: [DebugTool]`).
 
@@ -230,6 +232,13 @@ nnscaffold cli add-use-case --feature <Feature> --spec <file.json> [--preview] [
 All three write the test file in the mirrored test folder.
 
 The inspector and resolver stubs are generated synchronous. When either awaits anything (an async read, an async use case), change its signature to `async throws` before writing the body. If the command needs a seam the factory does not vend yet (an async shell), add it in the five places listed in section 2 of `references/architecture.md` before writing the use case that takes it.
+
+An inspector planned for tracking takes two edits after generation, and the inspector itself doesn't change:
+
+1. `Workflow/<Feature>Workflow.swift`: `let inspector: NnTrackedInspector<<Feature>Inspector>`.
+2. `makeWorkflow()`: wrap the generated construction, as section 2 of `references/architecture.md` shows, and add `let context = <Root>.makeContext()` at the top if the command has no such line.
+
+A tool whose `Package.swift` asks for NnArgumentParser below 1.3.0 raises it first. The wrapper shows one message for the whole inspection, and a fact recorded as missing still shows `✓`, so choose a message that stays true when a read fails ("Checking the repository", not "Fetched remotes").
 
 ## 5. Build and check
 

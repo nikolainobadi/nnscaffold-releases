@@ -19,10 +19,31 @@ An entry that relaxes a rule says so under **Changed**; its **Behind when** name
 
 ## [Unreleased]
 
+### Library targets stay free of CLI packages
+
+- **Changed**: a library target now can't depend on NnArgumentParser, ConsoleProgressKit, or SwiftPickerKit, and the rule gives its reason: the target holds logic that isn't tied to a terminal, so it stays reusable and testable without one. Before, only NnArgumentParser was named, with no reason given.
+- **Rules**: `references/architecture.md` section 5; `SKILL.md` Don't list item 34.
+- **Generated output**: none.
+- **Behind when**: a library target in the Core package's `Package.swift` lists `NnArgumentParser`, `ConsoleProgressKit`, or `SwiftPickerKit` as a dependency, or a file under `<App>Core/Sources/` imports one of them.
+
+### Slow inspection is tracked with NnTrackedInspector
+
+- **Changed**: a command whose inspection is slow now shows progress by wrapping its inspector in `NnTrackedInspector` in `makeWorkflow()`, and an inspector never takes the progress display, in any target. A use case that tracks work stays in the executable. Before, inspectors were told not to receive the display, with no reason given and no other way to show progress during inspection.
+- **Rules**: `SKILL.md` Inspect stage rule and Don't list item 44 (flow files move to item 45); `references/architecture.md` sections 2, 3, 5, and 8; `Workflows/add-command.md` steps 1 and 4b.
+- **Generated output**: `nnscaffold cli init` writes `from: "1.3.0"` for NnArgumentParser in `<tool>/Package.swift`. It wrote `1.1.0` before. `nnscaffold cli add-command --inspector` can reuse an inspector another command wraps in `NnTrackedInspector`, and copies it without the wrapper.
+- **Behind when**: an inspector's `init` takes `any ProgressDisplay`, or an inspector that makes network calls has no wrapper in its `<Feature>Workflow`. Raise NnArgumentParser to 1.3.0 in `Package.swift` before wrapping.
+
+### Tools can choose progress colors
+
+- **Changed**: a tool may pass a `ProgressTheme` to `LiveProgressDisplay(theme:)` in `DefaultContextFactory`. This relaxes nothing else: the display is still constructed only there, and `LiveProgressDisplay()` stays the generated default.
+- **Rules**: `SKILL.md` universal rule 2; `references/architecture.md` section 2.
+- **Generated output**: `nnscaffold cli init` writes `from: "0.7.0"` for ConsoleProgressKit in `<tool>/Package.swift`. It wrote `0.6.0` before.
+- **Behind when**: nothing to change.
+
 ### Commands get flow files
 
 - **Changed**: every leaf command now has a plain-English flow file at `<tool>/Flows/<command path>.md`, in the format of `references/flow-format.md`. A generated `FlowFilesTests` test fails when a command has no flow file or a flow file has no command. Add-command writes the flow file as its new step 6. Before, commands had no written explanation outside their code.
-- **Rules**: `references/flow-format.md`; `references/architecture.md` sections 7 and 8; `Workflows/add-command.md` step 6; `Workflows/review-cli.md` step 4; `SKILL.md` Don't list item 44 and **Completion**.
+- **Rules**: `references/flow-format.md`; `references/architecture.md` sections 7 and 8; `Workflows/add-command.md` step 6; `Workflows/review-cli.md` step 4; `SKILL.md` Don't list item 45 and **Completion**.
 - **Generated output**: `nnscaffold cli init` now writes `Tests/<tool>Tests/Main/FlowFilesTests.swift`. A new command, `nnscaffold cli add-flow-tests`, writes the same file into an existing tool.
 - **Behind when**: the tool has no `Tests/<tool>Tests/Main/FlowFilesTests.swift`, or no `Flows/` folder. The fix is **Adding flow files to an existing tool** in `references/flow-format.md`: run `nnscaffold cli add-flow-tests`, then write every flow file `swift test` lists, in one sitting.
 

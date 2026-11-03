@@ -35,12 +35,24 @@ Three types, all in `Main/`, plus any extra seam the factory vends:
 | Type | Role |
 | --- | --- |
 | `ContextFactory` (protocol) | `makeShell()`, `makeFileSystem()`, `makePicker()`, `makeProgressDisplay()`, `makeAsyncShell()` when a command needs it, and a `make<Seam>()` for each extra seam. Infrastructure only. No feature-specific methods. |
-| `DefaultContextFactory` | The production factory. `makePicker()` switches on `InteractionMode.current`: `SwiftPicker(interruptBehavior: .waitForTermination)` when interactive, the non-interactive picker with the `assumeYes` flag otherwise. Waiting for termination is right because the root's `main()` always ends the process on interrupt; the default, `.finishAsCancelled`, would return `nil` from an interrupted prompt and let the workflow carry on. An extra seam with a human-facing effect (opening a path in Finder or the browser) switches the same way, vending a skipping variant when non-interactive. Its method returns an outcome type in the seam's file (`PathOpenOutcome`), and both variants return the case for what they did (universal rule 3). `makeProgressDisplay()` returns `LiveProgressDisplay()` only when the mode is interactive and `TerminalCapabilities.standardErrorIsTerminal` is true, and `PlainProgressDisplay()` otherwise. |
+| `DefaultContextFactory` | The production factory. `makePicker()` switches on `InteractionMode.current`: `SwiftPicker(interruptBehavior: .waitForTermination)` when interactive, the non-interactive picker with the `assumeYes` flag otherwise. Waiting for termination is right because the root's `main()` always ends the process on interrupt; the default, `.finishAsCancelled`, would return `nil` from an interrupted prompt and let the workflow carry on. An extra seam with a human-facing effect (opening a path in Finder or the browser) switches the same way, vending a skipping variant when non-interactive. Its method returns an outcome type in the seam's file (`PathOpenOutcome`), and both variants return the case for what they did (universal rule 3). `makeProgressDisplay()` returns `LiveProgressDisplay()` only when the mode is interactive and `TerminalCapabilities.standardErrorIsTerminal` is true, and `PlainProgressDisplay()` otherwise. A tool that wants its own colors returns `LiveProgressDisplay(theme:)` with a `ProgressTheme` instead; the plain display takes no theme. |
 | `CommandContext` | A struct of the vended primitives (`shell`, `fileSystem`, `picker`, `progressDisplay`, and `asyncShell` when vended). Built once per command by `Root.makeContext()`. Carries no flags and no interactivity value. |
 
 The factory vends an `AsyncShell` beside the `Shell` only when a command runs shell work concurrently or must cancel it. Synchronous work keeps the `Shell`.
 
-Every tool vends `any ProgressDisplay`; `nnscaffold cli init` generates it. `Root.makeContext()` builds it once, registers `ProgressAwareOutputWriter` (in `Main/`), which forwards every `NnOutput` write to the display's `writeOutput(_:)`, and registers its `restoreTerminal()` as an `NnInterrupt` cleanup. `makeWorkflow()` passes it to the use cases that track work, which take `any ProgressDisplay` in `init`. Inspectors, interpreters, collectors, and formatters never receive it.
+Every tool vends `any ProgressDisplay`; `nnscaffold cli init` generates it. `Root.makeContext()` builds it once, registers `ProgressAwareOutputWriter` (in `Main/`), which forwards every `NnOutput` write to the display's `writeOutput(_:)`, and registers its `restoreTerminal()` as an `NnInterrupt` cleanup. `makeWorkflow()` passes it to the use cases that track work, which take `any ProgressDisplay` in `init`. Inspectors, interpreters, collectors, and formatters never receive it. An inspector may live in a library target, which can't depend on CLI code (section 5), so the rule holds wherever the inspector lives.
+
+When an inspector's reads are slow enough that the command would look stalled (a network call, `git fetch`), `makeWorkflow()` wraps it in `NnTrackedInspector`, from NnArgumentParser 1.3.0. The workflow names the wrapper as its inspector type (`let inspector: NnTrackedInspector<FeatureInspector>`), and the inspector itself doesn't change:
+
+```swift
+inspector: .init(base: .init(/* inspector args */), track: { work in
+    return try await context.progressDisplay.track("Checking the repository") { _ in
+        return try await work()
+    }
+}),
+```
+
+The wrapper covers all of `inspect()`, so it shows one message for the whole stage. A fact recorded as missing (a failed fetch stored as `nil` or a `<fact>Failure`) still counts as success and shows `✓`; only a thrown error shows `✗`.
 
 `nnscaffold cli init` generates a factory that vends a shell, a file system, a picker, and a progress display. Adding a seam to it touches five places, all in one change:
 
@@ -85,7 +97,7 @@ extension Root {
 - `<Group>Assembly` (universal rule 7) lives in `<Group>/Shared/Command/<Group>Assembly.swift`. Its static methods return built dependencies, which each `makeWorkflow()` injects. Because it is never part of the factory, a test's factory still replaces every primitive it uses.
 - `<Feature>Workflow` is a struct of five `let` properties conforming to `NnWorkflow`. It has no behavior of its own.
 - `<Feature>Options` and `<Feature>Input` follow universal rule 9; `validate()` rejects conflicting pairs with `ValidationError`. Every Input field is explicit. Optional fields mean "the caller did not decide this"; the inspection interpreter turns each into a requirement.
-- `<Feature>ResultsFormatter` is a caseless enum with `static func message(for:) -> String?`, called from `handleResults` (universal rule 8). Progress or warnings during work are written by the use case that produced them: through the progress display. Text that sets up a prompt (a suggestion to accept, a summary before a confirmation) belongs with that prompt and is written the same way. `NnOutput` routes every write through the registered writer, suppresses writes once an interrupt is being handled, and is the only output `testRun` captures.
+- `<Feature>ResultsFormatter` is a caseless enum with `static func message(for:) -> String?`, called from `handleResults` (universal rule 8). Progress or warnings during work are written by the use case that produced them: through the progress display. Progress during inspection is the one exception, and comes from `NnTrackedInspector` (section 2). Text that sets up a prompt (a suggestion to accept, a summary before a confirmation) belongs with that prompt and is written the same way. `NnOutput` routes every write through the registered writer, suppresses writes once an interrupt is being handled, and is the only output `testRun` captures.
 - Stage methods may be `async`. `nnscaffold` generates `inspect()` and `resolve(context:)` as synchronous `throws`; a stage that awaits anything changes its signature to `async throws`. Never bridge with `Task { }`: the stage would return before the work finishes and its errors would be lost. The workflow runs on an executor that tolerates blocking, so synchronous shell and file work inside a stage is fine. Where concurrent work lives is set by the Resolve stage rule. Command-scoped state is inherited by child tasks but not by `Task.detached` (universal rule 13).
 
 ## 4. Stage payload types and where they live
@@ -112,13 +124,13 @@ Requirement and Info types sit in `Models/`, owned by the feature, because both 
 
 ## 5. Module boundaries
 
-Inspectors, stores, detectors, and use cases may live in library targets that do not depend on NnArgumentParser. An inspector there exposes `func inspect() throws -> Facts` (or `async throws` when a read is asynchronous); the executable adopts the stage protocol with an empty extension in `Features/<Feature>/Extensions/`:
+Inspectors, stores, detectors, and use cases may live in library targets. A library target doesn't depend on NnArgumentParser, ConsoleProgressKit, or SwiftPickerKit: it holds logic that isn't tied to a terminal, so it stays reusable and testable without one. An inspector there exposes `func inspect() throws -> Facts` (or `async throws` when a read is asynchronous); the executable adopts the stage protocol with an empty extension in `Features/<Feature>/Extensions/`:
 
 ```swift
 extension ProjectInspector: @retroactive NnCommandInspector { }
 ```
 
-Interpreters, collectors, prompters, formatters, and the command itself stay in the executable: they are the tool's opinions, not reusable logic.
+Interpreters, collectors, prompters, formatters, and the command itself stay in the executable: they are the tool's opinions, not reusable logic. A use case that tracks work also stays in the executable, because it takes `any ProgressDisplay`.
 
 A new library target in the Core package comes from `nnscaffold cli add-kit`, never from hand edits to the Core manifest; `Workflows/add-command.md` step 4a has the invocation.
 
@@ -207,7 +219,7 @@ Three kinds of test, in order of preference. Read `TestingReference.md` in the N
 
 1. **Interpreters as pure functions.** Build the facts (or findings, requirements, answers) by hand, call `interpret`, assert on the result or the thrown `<Feature>Error`. No mocks needed.
 2. **Workflow wiring.** Build a `<Feature>Workflow` with `MockCommandInspector`, `MockCommandCollector`, and `MockCommandResolver` around the real interpreters, run it, and assert on `capturedRequirements` and `capturedContexts`.
-3. **Whole command.** Drive the root with `try await testRun`, passing the test factory vending mock infrastructure, the command's arguments, and the interaction mode explicitly; assert on the captured `NnOutput` output or on what the mocks recorded. Progress written through a display is not captured; the test factory vends `MockProgressDisplay` from the `ConsoleProgressTesting` product, and the test asserts on what it recorded (`trackedTitles`, each activity's `updates` and `outcome`, `notes`). A use-case test injects its own `MockProgressDisplay` the same way. Interrupt cleanups are tested through `testRunCapturingCleanups`, which returns them without running them; run them and assert `terminalWasRestored` on the factory's display.
+3. **Whole command.** Drive the root with `try await testRun`, passing the test factory vending mock infrastructure, the command's arguments, and the interaction mode explicitly; assert on the captured `NnOutput` output or on what the mocks recorded. Progress written through a display is not captured; the test factory vends `MockProgressDisplay` from the `ConsoleProgressTesting` product, and the test asserts on what it recorded (`trackedTitles`, each activity's `updates` and `outcome`, `notes`). A use-case test injects its own `MockProgressDisplay` the same way. A tracked inspector's title shows up in `trackedTitles` on the factory's display, and the inspector's own tests need no mock display. Interrupt cleanups are tested through `testRunCapturingCleanups`, which returns them without running them; run them and assert `terminalWasRestored` on the factory's display.
 
 Tests live in `Tests/<tool>Tests/`, mirroring the path below `Sources/<tool>/`: `Tests/<tool>Tests/Features/<Feature>/`, or `Tests/<tool>Tests/Features/<Group>/<Feature>/` for a grouped command, with the same role subfolders. The test factory and any shared helper live in `Tests/<tool>Tests/Shared/`. Test code may use default parameter values; production code may not.
 

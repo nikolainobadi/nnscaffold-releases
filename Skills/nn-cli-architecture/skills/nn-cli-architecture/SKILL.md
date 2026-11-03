@@ -26,7 +26,7 @@ Picker, shell, file-system, and progress-display APIs belong to the SwiftPickerK
 ## Universal rules
 
 1. **One root, one factory.** The `@main` type conforms to `NnRootCommand`, declares `@OptionGroup var interactivity: InteractivityOptions` once, and implements `static var defaultFactory`. Subcommands are declared as extensions of the root (or of a group) so they reach the factory through the root type.
-2. **The factory is an infrastructure seam.** It vends primitives: a shell, a file system, a picker, and a progress display, which `nnscaffold cli init` generates in every tool; an async shell when a command runs shell work concurrently or must cancel it; and any further side-effect seam that every feature could use and whose real or skipping variant depends on interactivity (a path opener). `Root.makeContext()` bundles them into a `CommandContext`, and is the only place that registers an `NnOutput` writer or `NnInterrupt` cleanups. A factory method per feature is a service locator; features assemble themselves from the primitives instead.
+2. **The factory is an infrastructure seam.** It vends primitives: a shell, a file system, a picker, and a progress display, which `nnscaffold cli init` generates in every tool; an async shell when a command runs shell work concurrently or must cancel it; and any further side-effect seam that every feature could use and whose real or skipping variant depends on interactivity (a path opener). `Root.makeContext()` bundles them into a `CommandContext`, and is the only place that registers an `NnOutput` writer or `NnInterrupt` cleanups. A factory method per feature is a service locator; features assemble themselves from the primitives instead. A tool that wants its own progress colors passes a `ProgressTheme` to `LiveProgressDisplay(theme:)` in the default factory; nothing else changes.
 3. **Interactivity is read in exactly one place.** The default factory picks the real or the non-interactive picker from `InteractionMode.current`. The real picker is built with `interruptBehavior: .waitForTermination`, so Ctrl+C at a prompt ends the tool instead of handing the workflow an empty answer. No stage, use case, or context carries an "is interactive" value. A seam with a skipping variant (a path opener) returns an outcome from the call that may skip, named for the seam (`.opened` or `.skipped`); the resolver carries it in `Results`, and the formatter reports what actually happened.
 4. **Every command is an `NnWorkflowCommand`.** Every command other than a group runs the pipeline, however small. One shape means a command that grows needs no rewrite, and `nnscaffold` generates the ceremony.
 5. **`makeWorkflow()` is the composition root.** From `Root.makeContext()` it builds every store, use case, and client, and every dependency two stages share, and passes each stage the primitives it needs.
@@ -44,7 +44,7 @@ Picker, shell, file-system, and progress-display APIs belong to the SwiftPickerK
 
 The pipeline is inspect → interpret → collect → interpret → resolve. Decisions belong to the two interpreters and nowhere else.
 
-**Inspect** (`<Feature>Inspector`). Gathers facts: tools present, files present, repository state. A missing thing is `nil`, not an error. When the reason it is missing tells the user what to fix (git failed, rather than "not a repository"), the inspector may record it beside the fact as `<fact>Failure: String?` instead of folding it into `nil` with `try?`; the inspection interpreter decides whether that reason blocks. Throws only when an operation itself fails. Changes nothing the user owns: no writing files, no moving branches, no pushing, no prompting. Reads are allowed, local or over the network, and so is refreshing remote-tracking refs and tags (`git fetch`), since that is a cache refresh. An unreachable source is a fact (`nil` or `false`), not a throw; the inspection interpreter decides whether it blocks. `inspect()` may be `async` when a read is.
+**Inspect** (`<Feature>Inspector`). Gathers facts: tools present, files present, repository state. A missing thing is `nil`, not an error. When the reason it is missing tells the user what to fix (git failed, rather than "not a repository"), the inspector may record it beside the fact as `<fact>Failure: String?` instead of folding it into `nil` with `try?`; the inspection interpreter decides whether that reason blocks. Throws only when an operation itself fails. Changes nothing the user owns: no writing files, no moving branches, no pushing, no prompting. Reads are allowed, local or over the network, and so is refreshing remote-tracking refs and tags (`git fetch`), since that is a cache refresh. An unreachable source is a fact (`nil` or `false`), not a throw; the inspection interpreter decides whether it blocks. `inspect()` may be `async` when a read is. An inspector never takes the progress display, because it may live in a library target that can't depend on CLI code. When its reads are slow enough that the command would look stalled, `makeWorkflow()` wraps it in `NnTrackedInspector` (section 2 of `references/architecture.md`).
 
 **Inspection interpreter** (`<Feature>InspectionInterpreter`). Makes every decision that can be made before the user is asked anything. Throws a `<Feature>Error` for every fact that blocks the command; a blocking fact the inspector collects and the interpreter never checks is a bug. Returns findings (settled) and requirements (missing). Each requirement is an `NnRequirement<Value, Info>`: `.known` when input or facts settle it, `.unknown(Info)` otherwise, where `Info` is a plain struct of the facts the next stage needs (candidates, the latest version). The inspection side knows nothing about the collector: no prompt text, no picker types, no types nested under the collector. A helper that works out one input is `<Field>Detector` with `detect(...)`, created with `nnscaffold cli add-helper`; "select" is reserved for something a person picks. A type that classifies or throws holds findings and is never named `*Facts`.
 
@@ -130,11 +130,11 @@ The review checklist, used by [Workflows/review-cli.md](Workflows/review-cli.md)
 31. A tool-wide error enum, or an error message that does not say what to do next.
 32. A payload type outside the place `references/architecture.md` section 4 gives it.
 33. A folder holding both loose files and subfolders (apart from a feature's or group's root file), or a file in `Shared/` that only one feature uses.
-34. An interpreter, collector, prompter, or formatter in a library target.
+34. An interpreter, collector, prompter, or formatter in a library target, or a library target that depends on NnArgumentParser, ConsoleProgressKit, or SwiftPickerKit.
 35. Default parameter values under `Sources/`.
 36. `isX` Bool names.
 
-**Interruption, concurrency, and progress** (universal rules 2, 3, 12, and 13; the Resolve stage rule)
+**Interruption, concurrency, and progress** (universal rules 2, 3, 12, and 13; the Inspect and Resolve stage rules)
 
 37. An interactive `SwiftPicker` built without `interruptBehavior: .waitForTermination`.
 38. An `NnOutput` writer or `NnInterrupt` cleanup registered anywhere but `Root.makeContext()`.
@@ -143,10 +143,11 @@ The review checklist, used by [Workflows/review-cli.md](Workflows/review-cli.md)
 41. A task group or other concurrent work in a resolver body instead of a use case.
 42. An unstructured `Task { }` in a stage or use case used to reach async work from a synchronous body; the signature becomes `async throws` instead.
 43. A `LiveProgressDisplay` or `PlainProgressDisplay` constructed anywhere but `DefaultContextFactory`, or a display whose `restoreTerminal()` is not registered as an `NnInterrupt` cleanup in `Root.makeContext()`.
+44. An inspector that takes a progress display, in any target.
 
 **Flow files** (`references/flow-format.md`)
 
-44. A leaf command without `Flows/<command path>.md`, a flow file with no command, or a flow file whose steps, questions, stops, or Code line disagree with the code.
+45. A leaf command without `Flows/<command path>.md`, a flow file with no command, or a flow file whose steps, questions, stops, or Code line disagree with the code.
 
 ## Completion
 
