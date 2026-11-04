@@ -19,6 +19,8 @@ An entry that relaxes a rule says so under **Changed**; its **Behind when** name
 
 ## [Unreleased]
 
+## [0.10.0] - 2026-11-03
+
 ### Library targets stay free of CLI packages
 
 - **Changed**: a library target now can't depend on NnArgumentParser, ConsoleProgressKit, or SwiftPickerKit, and the rule gives its reason: the target holds logic that isn't tied to a terminal, so it stays reusable and testable without one. Before, only NnArgumentParser was named, with no reason given.
@@ -40,6 +42,8 @@ An entry that relaxes a rule says so under **Changed**; its **Behind when** name
 - **Generated output**: `nnscaffold cli init` writes `from: "0.7.0"` for ConsoleProgressKit in `<tool>/Package.swift`. It wrote `0.6.0` before.
 - **Behind when**: nothing to change.
 
+## [0.9.0] - 2026-11-01
+
 ### Commands get flow files
 
 - **Changed**: every leaf command now has a plain-English flow file at `<tool>/Flows/<command path>.md`, in the format of `references/flow-format.md`. A generated `FlowFilesTests` test fails when a command has no flow file or a flow file has no command. Add-command writes the flow file as its new step 6. Before, commands had no written explanation outside their code.
@@ -54,6 +58,8 @@ An entry that relaxes a rule says so under **Changed**; its **Behind when** name
 - **Generated output**: `nnscaffold cli add-command` with `--inspector`: `<Feature>WorkflowTests.swift`, and `Shared/TestFactory+<Feature>.swift` when no shared factory exists.
 - **Behind when**: a `<Feature>WorkflowTests.swift` calls a facts factory that isn't declared in `Tests/<tool>Tests/Shared/`, which shows up as `cannot find '<name>' in scope` when the tests build.
 
+## [0.8.2] - 2026-11-01
+
 ### add-use-case builds a shared dependency once
 
 - **Changed**: `add-use-case` now builds a dependency once when its `name` and `from` match an argument already in `makeWorkflow()` or another new use case's. It reuses an existing `let <name> = <from>`, or turns the inline argument into a `let` before `return .init(` and passes `<name>` everywhere. Before, it passed its own copy of the expression, which broke universal rule 5. This replaces the "`add-use-case` doesn't hoist" note in **Shared dependencies built once**.
@@ -67,6 +73,8 @@ An entry that relaxes a rule says so under **Changed**; its **Behind when** name
 - **Rules**: `Workflows/add-command.md` step 2b (`knownTypes`).
 - **Generated output**: none.
 - **Behind when**: `knownTypes` lists a type declared in the Core package. Remove it.
+
+## [0.8.1] - 2026-11-01
 
 ### Helpers import only what they use
 
@@ -88,6 +96,8 @@ An entry that relaxes a rule says so under **Changed**; its **Behind when** name
 - **Rules**: `Workflows/add-command.md` step 2b (`imports`) and **Adding a use case to an existing command**.
 - **Generated output**: `nnscaffold cli add-command --spec` writes the spec's imports into `Command/<Feature>.swift`; `nnscaffold cli add-use-case` edits that file's imports.
 - **Behind when**: a command file that builds a `from` type and imports its module by hand. Nothing to change.
+
+## [0.8.0] - 2026-11-01
 
 ### New command: `add-use-case`
 
