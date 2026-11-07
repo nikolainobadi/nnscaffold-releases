@@ -19,6 +19,22 @@ An entry that relaxes a rule says so under **Changed**; its **Behind when** name
 
 ## [Unreleased]
 
+## [0.11.1] - 2026-11-07
+
+### `--yes` approves confirmations in a terminal
+
+- **Changed**: `DefaultContextFactory.makePicker()` now passes the mode's `assumeYes` to the interactive picker, `SwiftPicker(interruptBehavior: .waitForTermination, assumeYes:)`, so `--yes` approves confirmation prompts in a terminal as well. Before, the interactive case ignored `assumeYes`, so `--yes` only took effect in non-interactive runs.
+- **Rules**: `references/architecture.md`, the `DefaultContextFactory` row.
+- **Generated output**: `cli init` now generates the new interactive case in `Main/DefaultContextFactory.swift` and requires SwiftPickerKit 0.14.0 in the executable's `Package.swift`.
+- **Behind when**: `makePicker()` in `DefaultContextFactory.swift` has `case .interactive:` without binding `assumeYes`, or the tool's `Package.swift` requires SwiftPickerKit below 0.14.0.
+
+### Core package requires NnFileKit 0.9.2
+
+- **Changed**: the generated Core package now requires NnFileKit 0.9.2, where `MockFileSystem.directory(at:)` and `MockDirectory.subdirectory(named:)` throw `FileSystemError.directoryNotFound` for a missing directory, matching the real implementations. Before, it required 0.9.1, where those mocks threw undocumented `NSError` codes.
+- **Rules**: none.
+- **Generated output**: `cli init` now requires NnFileKit 0.9.2 in the Core package's `Package.swift`.
+- **Behind when**: the Core package's `Package.swift` requires NnFileKit below 0.9.2, or a test matches `NSError` domain `"MockFileSystem"` code 1 or `"MockDirectory"` code 2 for a missing directory.
+
 ## [0.10.0] - 2026-11-03
 
 ### Library targets stay free of CLI packages
