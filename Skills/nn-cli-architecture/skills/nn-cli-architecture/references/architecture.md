@@ -176,6 +176,8 @@ Sources/<tool>/
         <Feature>CommandResolver.swift
       UseCases/
         <Verb><Noun>UseCase.swift
+      FollowUps/
+        <Value>Prompter.swift       a follow-up a use case asks once the work has produced something
       Formatter/
         <Feature>ResultsFormatter.swift
       Models/
@@ -204,10 +206,10 @@ Sources/<tool>/
 Rules:
 
 - A folder holds files or subfolders, never both. The one exception is a feature's or group's root file beside its subfolders.
-- Omit any role folder the feature does not need. A passthrough command has no `Collector/`.
+- Omit any role folder the feature does not need. A passthrough command has no `Collector/`, but may have `FollowUps/`.
 - A file starts in the feature that needed it and moves to `Shared/` only when a second feature uses it. It goes in the `Shared/` of the closest folder that holds every feature using it: the group's folder when they share a group, `Features/` otherwise.
 - A feature is the unit of deletion: removing its folder removes everything it owned.
-- Prompters come from `nnscaffold cli add-prompter`, into `Collector/Prompters/`, `<Group>/Shared/Prompters/`, or `Shared/Prompters/`. Interpreter helpers (`<Name>Detector`, `Validator`, `Classifier`, `Builder`) come from `nnscaffold cli add-helper`, into the feature's `Interpreters/Inspection/`, `Interpreters/Collection/`, or `Interpreters/Shared/`, or into `<Group>/Shared/Interpreters/` or `Shared/Interpreters/`. Each also writes its test file in the mirrored test folder.
+- Prompters come from `nnscaffold cli add-prompter`. A prompter the collector asks goes into `Collector/Prompters/`, `<Group>/Shared/Prompters/`, or `Shared/Prompters/`. A follow-up prompter a use case asks (`--stage resolve`) goes into `FollowUps/`, `<Group>/Shared/FollowUps/`, or `Shared/FollowUps/`; `Resolver/` and `UseCases/` hold files, so it gets its own role folder. Interpreter helpers (`<Name>Detector`, `Validator`, `Classifier`, `Builder`) come from `nnscaffold cli add-helper`, into the feature's `Interpreters/Inspection/`, `Interpreters/Collection/`, or `Interpreters/Shared/`, or into `<Group>/Shared/Interpreters/` or `Shared/Interpreters/`. Each also writes its test file in the mirrored test folder.
 - `<Group>/Shared/Interpreters/` and `Shared/Interpreters/` are either loose helpers or split into `Inspection/`, `Collection/`, and `Shared/` subfolders, never a mix. `add-helper` follows the shape already there: loose helpers take only `--stage shared`, and a split folder takes any stage. Split a crowded folder by hand; the tool cannot tell a loose helper's stage from where it sits.
 - A helper's own result type (what a detector returns) is nested in the helper under `// MARK: - Dependencies` and stays in its file.
 - Every leaf command has a flow file at `<tool>/Flows/<command path>.md`, at the package root beside `Sources/`, never inside it. A group is a folder in `Flows/`. Its format is in `references/flow-format.md`, and a feature's removal removes its flow file too.

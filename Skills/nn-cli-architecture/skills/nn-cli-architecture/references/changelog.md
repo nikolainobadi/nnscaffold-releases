@@ -19,6 +19,15 @@ An entry that relaxes a rule says so under **Changed**; its **Behind when** name
 
 ## [Unreleased]
 
+## [0.11.2] - 2026-11-07
+
+### Follow-up prompters live in `FollowUps/`
+
+- **Changed**: A prompter a use case asks as a follow-up, once the work has produced something, now lives in the feature's `FollowUps/` folder (or `<Group>/Shared/FollowUps/`, `Shared/FollowUps/`) and comes from `nnscaffold cli add-prompter --stage resolve`, which works for passthrough commands too. Before, every prompter lived in `Collector/Prompters/`, so a passthrough command had no place for one, and a collecting command kept its use-case prompters beside the collector's.
+- **Rules**: `SKILL.md`, the Resolve stage rule and Don't list item 33; `references/architecture.md` section 7.
+- **Generated output**: `cli add-prompter` gains `--stage collect|resolve`; `--stage resolve` writes `<Feature>/FollowUps/<Value>Prompter.swift` and its test in `Tests/<tool>Tests/Features/<Feature>/FollowUps/`. The error for a feature with no `Collector/` now points to `--stage resolve`.
+- **Behind when**: a prompter in `Collector/Prompters/` (and its test) that only a use case or resolver calls, not the collector; or a use case that calls the picker directly for a follow-up instead of through a `<Value>Prompter`.
+
 ## [0.11.1] - 2026-11-07
 
 ### `--yes` approves confirmations in a terminal

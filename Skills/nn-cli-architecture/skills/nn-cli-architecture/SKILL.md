@@ -52,7 +52,7 @@ The pipeline is inspect → interpret → collect → interpret → resolve. Dec
 
 **Collection interpreter** (`<Feature>CollectionInterpreter`). Resolves each requirement with its answer through `resolve(answer:)`, validates typed answers (throwing `<Feature>Error` on bad input), and builds the `Context` with everything the resolver needs.
 
-**Resolve** (`<Feature>CommandResolver`). Does the work through use cases, or a store, injected in `init`. A store is injected directly only when the work is one read or write with no logic around it; once there is a sequence of steps, a second dependency, or progress to report, it becomes a use case. Use-case properties are agent nouns (`releasePublisher`, not `publishRelease`). May prompt only for follow-ups that arise from work already done, such as confirming a suggestion the work produced or a final confirmation. Never prompts for an input the command needed before it started. Such a prompt runs inside the progress display's `suspended { }`. `resolve(context:)` is `async` when a use case it awaits is; concurrent work (a task group) lives inside that use case, not in the resolver. Returns `Results`, usually an enum, and writes nothing.
+**Resolve** (`<Feature>CommandResolver`). Does the work through use cases, or a store, injected in `init`. A store is injected directly only when the work is one read or write with no logic around it; once there is a sequence of steps, a second dependency, or progress to report, it becomes a use case. Use-case properties are agent nouns (`releasePublisher`, not `publishRelease`). May prompt only for follow-ups that arise from work already done, such as confirming a suggestion the work produced or a final confirmation. Never prompts for an input the command needed before it started. Such a prompt runs inside the progress display's `suspended { }`. The follow-up is asked through a `<Value>Prompter` from `nnscaffold cli add-prompter --stage resolve`, held by the use case that asks it, and lives in `<Feature>/FollowUps/`. `resolve(context:)` is `async` when a use case it awaits is; concurrent work (a task group) lives inside that use case, not in the resolver. Returns `Results`, usually an enum, and writes nothing.
 
 ## Routing
 
@@ -129,7 +129,7 @@ The review checklist, used by [Workflows/review-cli.md](Workflows/review-cli.md)
 
 31. A tool-wide error enum, or an error message that does not say what to do next.
 32. A payload type outside the place `references/architecture.md` section 4 gives it.
-33. A folder holding both loose files and subfolders (apart from a feature's or group's root file), or a file in `Shared/` that only one feature uses.
+33. A folder holding both loose files and subfolders (apart from a feature's or group's root file), a file in `Shared/` that only one feature uses, or a prompter in the wrong role folder: one a use case asks in `Collector/Prompters/`, or one the collector asks in `FollowUps/`.
 34. An interpreter, collector, prompter, or formatter in a library target, or a library target that depends on NnArgumentParser, ConsoleProgressKit, or SwiftPickerKit.
 35. Default parameter values under `Sources/`.
 36. `isX` Bool names.
