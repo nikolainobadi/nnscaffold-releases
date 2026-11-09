@@ -1,11 +1,11 @@
 ---
 name: nn-cli-architecture
-description: Architecture reference for Swift command-line tools built on NnArgumentParser. Covers the NnRootCommand root with a dependency factory, the NnWorkflow inspect/collect/resolve pipeline that every command follows, where each stage type lives, the feature folder layout, and file style. USE WHEN creating a new Swift CLI, adding or reshaping a command in an existing one, planning or writing an implementation plan for a new command, subcommand, group, or feature of a Swift CLI, deciding where a type or file belongs in a command-line tool, reviewing a Swift CLI's structure, catching up an existing CLI after changes to this architecture or to nnscaffold (what needs refactoring now), writing or reviewing a command's flow file (Flows/*.md) or adding flow files to an existing CLI, setting up CLI tests, or answering how a command built on NnArgumentParser or NnWorkflow should be organized. Not for the NnArgumentParser API itself (its own skill owns that), SwiftUI apps, or Swift packages that are not command-line tools.
+description: Architecture reference for Swift command-line tools built on NnArgumentParser. Covers the NnRootCommand root with a dependency factory, the NnWorkflow inspect/collect/perform pipeline that every command follows, where each stage type lives, the feature folder layout, and file style. USE WHEN creating a new Swift CLI, adding or reshaping a command in an existing one, planning or writing an implementation plan for a new command, subcommand, group, or feature of a Swift CLI, deciding where a type or file belongs in a command-line tool, reviewing a Swift CLI's structure, catching up an existing CLI after changes to this architecture or to nnscaffold (what needs refactoring now), writing or reviewing a command's flow file (Flows/*.md) or adding flow files to an existing CLI, setting up CLI tests, or answering how a command built on NnArgumentParser or NnWorkflow should be organized. Not for the NnArgumentParser API itself (its own skill owns that), SwiftUI apps, or Swift packages that are not command-line tools.
 ---
 
 # nn-cli-architecture
 
-Rules for how a Swift command-line tool on NnArgumentParser is structured. Each rule is written once, here; the smells that break them are in the Don't list. The rules name no particular tool; an existing tool that disagrees with a rule is the thing to fix.
+Rules for how a Swift command-line tool on NnArgumentParser is structured. Principles that hold for any project live in the `nn-architecture` skill. Each rule specific to command-line tools is written once, here; the smells that break them are in the Don't list. The rules name no particular tool; an existing tool that disagrees with a rule is the thing to fix.
 
 Paths in this file resolve from the directory containing this `SKILL.md`. Paths in the tool being built are always written as project paths.
 
@@ -21,19 +21,21 @@ This skill governs structure: which types exist, what each may do, and where its
 
 If the NnArgumentParser skill is not loaded, install it with `claude plugin install NnArgumentParser@nn-swift-skills`, then continue. Do not reproduce its content from memory.
 
+The **nn-architecture** skill owns how types are named, how work is decomposed, failure and recovery, and how to request an exception. The rules here say how those principles apply to a command-line tool.
+
 Picker, shell, file-system, and progress-display APIs belong to the SwiftPickerKit, NnShellKit, NnFileKit, and ConsoleProgressKit skills. Before writing code that uses a progress display, load the ConsoleProgressKit skill (`claude plugin install ConsoleProgressKit@nn-swift-skills`).
 
 ## Universal rules
 
 1. **One root, one factory.** The `@main` type conforms to `NnRootCommand`, declares `@OptionGroup var interactivity: InteractivityOptions` once, and implements `static var defaultFactory`. Subcommands are declared as extensions of the root (or of a group) so they reach the factory through the root type.
 2. **The factory is an infrastructure seam.** It vends primitives: a shell, a file system, a picker, and a progress display, which `nnscaffold cli init` generates in every tool; an async shell when a command runs shell work concurrently or must cancel it; and any further side-effect seam that every feature could use and whose real or skipping variant depends on interactivity (a path opener). `Root.makeContext()` bundles them into a `CommandContext`, and is the only place that registers an `NnOutput` writer or `NnInterrupt` cleanups. A factory method per feature is a service locator; features assemble themselves from the primitives instead. A tool that wants its own progress colors passes a `ProgressTheme` to `LiveProgressDisplay(theme:)` in the default factory; nothing else changes.
-3. **Interactivity is read in exactly one place.** The default factory picks the real or the non-interactive picker from `InteractionMode.current`. The real picker is built with `interruptBehavior: .waitForTermination`, so Ctrl+C at a prompt ends the tool instead of handing the workflow an empty answer. No stage, use case, or context carries an "is interactive" value. A seam with a skipping variant (a path opener) returns an outcome from the call that may skip, named for the seam (`.opened` or `.skipped`); the resolver carries it in `Results`, and the formatter reports what actually happened.
+3. **Interactivity is read in exactly one place.** The default factory picks the real or the non-interactive picker from `InteractionMode.current`. The real picker is built with `interruptBehavior: .waitForTermination`, so Ctrl+C at a prompt ends the tool instead of handing the workflow an empty answer. No stage, use case, or brief carries an "is interactive" value. A seam with a skipping variant (a path opener) returns an outcome from the call that may skip, named for the seam (`.opened` or `.skipped`); the performer carries it in `Results`, and the formatter reports what actually happened.
 4. **Every command is an `NnWorkflowCommand`.** Every command other than a group runs the pipeline, however small. One shape means a command that grows needs no rewrite, and `nnscaffold` generates the ceremony.
-5. **`makeWorkflow()` is the composition root.** From `Root.makeContext()` it builds every store, use case, and client, and every dependency two stages share, and passes each stage the primitives it needs.
+5. **`makeWorkflow()` is the composition root.** From `Root.makeContext()` it builds every store, use case, and client, and every dependency two stages share, and passes each stage the primitives it needs. That includes the use cases one use case gives to another.
 6. **A stage builds only its private helpers.** A stage may build its own helpers (prompters from the picker, detectors from the file system) when only that stage uses them and they need nothing beyond the primitive it was given.
 7. **`<Group>Assembly` builds what sibling commands share.** When sibling commands in a group build the same use cases, stores, or clients, a `<Group>Assembly` caseless enum in `<Group>/Shared/Command/` may build them. Its only inputs are the `CommandContext` and values `makeWorkflow()` already holds, `makeWorkflow()` is its only caller, and it builds no stage and is never part of the factory.
 8. **`handleResults` writes the final report.** It passes the results to `<Feature>ResultsFormatter.message(for:)` and writes the message with `NnOutput.write(_:)`. Nothing else writes the final report.
-9. **Options and Input.** Flags live in a `<Feature>Options: ParsableArguments` type that rejects conflicting flags in `validate()` and converts to a plain `<Feature>Input` struct (no ArgumentParser types) through `makeInput()`. The Input reaches the inspection interpreter through its initializer. A command with no flags has neither type. Flags that two or more commands take with the same meaning live once, in a `<Concern>Options` group in the closest `Shared/Command/`. Each command includes it with `@OptionGroup`, its Input holds a `<Concern>Input`, and its Findings and Context hold the derived `<Concern>Settings` whole (section 4 of `references/architecture.md`).
+9. **Options and Input.** Flags live in a `<Feature>Options: ParsableArguments` type that rejects conflicting flags in `validate()` and converts to a plain `<Feature>Input` struct (no ArgumentParser types) through `makeInput()`. The Input reaches the inspection interpreter through its initializer. A command with no flags has neither type. Flags that two or more commands take with the same meaning live once, in a `<Concern>Options` group in the closest `Shared/Command/`. Each command includes it with `@OptionGroup`, its Input holds a `<Concern>Input`, and its Findings and Brief hold the derived `<Concern>Settings` whole (section 4 of `references/architecture.md`).
 10. **No default parameter values under `Sources/`.** Every call site spells every argument. Stored-property defaults on `ParsableArguments` are properties, not parameters, and are allowed.
 11. **Every command has a non-empty `abstract`.** A command whose prompts have no flag equivalent says so in `discussion`.
 12. **Every line the user reads goes through `NnOutput.write(_:)` or the progress display.** The final report, warnings, and text that sets up a prompt go through `NnOutput.write(_:)`. Progress on tracked work (`track`, `note`, activity updates) goes through the `ProgressDisplay` the factory vends; it draws on stderr itself, `testRun` does not capture it, and tests assert on what a mock display recorded. How `NnOutput` is displayed belongs to the writer registered in `Root.makeContext()`: `ProgressAwareOutputWriter` forwards to the display's `writeOutput(_:)` so results never draw over running activities.
@@ -42,17 +44,17 @@ Picker, shell, file-system, and progress-display APIs belong to the SwiftPickerK
 
 ## Stage rules
 
-The pipeline is inspect → interpret → collect → interpret → resolve. Decisions belong to the two interpreters and nowhere else.
+The pipeline is inspect → interpret → collect → interpret → perform. Decisions belong to the two interpreters and nowhere else.
 
 **Inspect** (`<Feature>Inspector`). Gathers facts: tools present, files present, repository state. A missing thing is `nil`, not an error. When the reason it is missing tells the user what to fix (git failed, rather than "not a repository"), the inspector may record it beside the fact as `<fact>Failure: String?` instead of folding it into `nil` with `try?`; the inspection interpreter decides whether that reason blocks. Throws only when an operation itself fails. Changes nothing the user owns: no writing files, no moving branches, no pushing, no prompting. Reads are allowed, local or over the network, and so is refreshing remote-tracking refs and tags (`git fetch`), since that is a cache refresh. An unreachable source is a fact (`nil` or `false`), not a throw; the inspection interpreter decides whether it blocks. `inspect()` may be `async` when a read is. An inspector never takes the progress display, because it may live in a library target that can't depend on CLI code. When its reads are slow enough that the command would look stalled, `makeWorkflow()` wraps it in `NnTrackedInspector` (section 2 of `references/architecture.md`).
 
 **Inspection interpreter** (`<Feature>InspectionInterpreter`). Makes every decision that can be made before the user is asked anything. Throws a `<Feature>Error` for every fact that blocks the command; a blocking fact the inspector collects and the interpreter never checks is a bug. Returns findings (settled) and requirements (missing). Each requirement is an `NnRequirement<Value, Info>`: `.known` when input or facts settle it, `.unknown(Info)` otherwise, where `Info` is a plain struct of the facts the next stage needs (candidates, the latest version). The inspection side knows nothing about the collector: no prompt text, no picker types, no types nested under the collector. A helper that works out one input is `<Field>Detector` with `detect(...)`, created with `nnscaffold cli add-helper`; "select" is reserved for something a person picks. A type that classifies or throws holds findings and is never named `*Facts`.
 
-**Collect** (`<Feature>CommandCollector`). Asks only for `.unknown` requirements through `NnRequirement.ask`. One `<Value>Prompter` per question, created with `nnscaffold cli add-prompter`, owns that question's immediate follow-ups (pick "custom", then type the value). The collector sequences prompters and threads earlier answers into later ones; that is its only control flow. Returning early when an earlier answer makes the remaining questions moot (keep the config, so nothing else is asked) counts as sequencing. `Answers` holds only what was asked; a field is `nil` when its requirement was known. Every prompt in a command that has Options passes `flagHint:` naming the flag that supplies the value. The collector never reads facts and never reads interactivity. A command with nothing to ask uses `NnPassthroughCollector` and `NnPassthroughCollectionInterpreter`.
+**Collect** (`<Feature>Collector`). Asks only for `.unknown` requirements through `NnRequirement.ask`. One `<Value>Prompter` per question, created with `nnscaffold cli add-prompter`, owns that question's immediate follow-ups (pick "custom", then type the value). The collector sequences prompters and threads earlier answers into later ones; that is its only control flow. Returning early when an earlier answer makes the remaining questions moot (keep the config, so nothing else is asked) counts as sequencing. `Answers` holds only what was asked; a field is `nil` when its requirement was known. Every prompt in a command that has Options passes `flagHint:` naming the flag that supplies the value. The collector never reads facts and never reads interactivity. A command with nothing to ask uses `NnPassthroughCollector` and `NnPassthroughCollectionInterpreter`.
 
-**Collection interpreter** (`<Feature>CollectionInterpreter`). Resolves each requirement with its answer through `resolve(answer:)`, validates typed answers (throwing `<Feature>Error` on bad input), and builds the `Context` with everything the resolver needs.
+**Collection interpreter** (`<Feature>CollectionInterpreter`). Resolves each requirement with its answer through `resolve(answer:)`, validates typed answers (throwing `<Feature>Error` on bad input), and builds the `Brief` with everything the performer needs.
 
-**Resolve** (`<Feature>CommandResolver`). Does the work through use cases, or a store, injected in `init`. A store is injected directly only when the work is one read or write with no logic around it; once there is a sequence of steps, a second dependency, or progress to report, it becomes a use case. Use-case properties are agent nouns (`releasePublisher`, not `publishRelease`). May prompt only for follow-ups that arise from work already done, such as confirming a suggestion the work produced or a final confirmation. Never prompts for an input the command needed before it started. Such a prompt runs inside the progress display's `suspended { }`. The follow-up is asked through a `<Value>Prompter` from `nnscaffold cli add-prompter --stage resolve`, held by the use case that asks it, and lives in `<Feature>/FollowUps/`. `resolve(context:)` is `async` when a use case it awaits is; concurrent work (a task group) lives inside that use case, not in the resolver. Returns `Results`, usually an enum, and writes nothing.
+**Perform** (`<Feature>Performer`). Does the work through use cases, or a store, injected in `init`. A store is injected directly only when the work is one read or write with no logic around it; once there is a sequence of steps, a second dependency, or progress to report, it becomes a use case. The performer is the coordinator. A coordinating use case exists only when two commands share the sequence or the sequence runs concurrently. A use case is an agent noun (`ReleasePublisher`), and the property holding it is the type name with its whole leading acronym lowercased. May prompt only for follow-ups that arise from work already done, such as confirming a suggestion the work produced or a final confirmation. Never prompts for an input the command needed before it started. Such a prompt runs inside the progress display's `suspended { }`. The follow-up is asked through a `<Value>Prompter` from `nnscaffold cli add-prompter --stage perform`, held by the use case that asks it, and lives in `<Feature>/FollowUps/`. `perform(brief:)` is `async` when a use case it awaits is; concurrent work (a task group) lives inside that use case, not in the performer. Returns `Results`, usually an enum, and writes nothing.
 
 ## Routing
 
@@ -63,6 +65,7 @@ The pipeline is inspect → interpret → collect → interpret → resolve. Dec
 | A root command exists and the request adds a use case to an existing command | the **Adding a use case to an existing command** section of [Workflows/add-command.md](Workflows/add-command.md) before changing any file |
 | A root command exists and the request adds or reshapes a command, or asks for a plan to do so | [Workflows/add-command.md](Workflows/add-command.md) before planning or creating any file, including a plan document |
 | A change to this skill's rules or to what `nnscaffold` generates is being made | [references/changelog.md](references/changelog.md), then add its entry under `## [Unreleased]` in the same change |
+| A type is about to be named, or work is about to be split across types | the `nn-architecture` skill and [references/glossary.md](references/glossary.md) before naming or splitting |
 | A file is about to be created or moved | the **Folder layout** and **Stage payload types** sections of [references/architecture.md](references/architecture.md) |
 | A Swift file is about to be written | [references/style.md](references/style.md) |
 | A test is about to be written | the **Testing shape** section of [references/architecture.md](references/architecture.md) |
@@ -77,77 +80,83 @@ If a routed file cannot be read, say which one and what it governs, and stop the
 
 The review checklist, used by [Workflows/review-cli.md](Workflows/review-cli.md) and by the add-command check. Each item is the smell of a rule above or a section of `references/architecture.md`. Report only the items that fail, by number.
 
+Each item is marked with how it's enforced. **Generated:** `nnscaffold` produces the correct form, so check only code changed after generation. **Checked:** a test fails when it's broken, so review skips it if the project has that test. **Judgment:** only reading the code can tell.
+
 **Root and dependencies** (universal rules 1 to 3)
 
-1. More than one `NnRootCommand`, or `InteractivityOptions` declared anywhere but the root.
-2. A subcommand not declared as an extension of the root or of its group.
-3. A group command with options or a `run()`.
-4. A factory method for a feature, or a store vended by the factory.
-5. Interactivity read anywhere but the default factory, including an `isInteractive` value passed to a stage, use case, or context.
-6. A seam with a skipping variant that returns no outcome, or a report announcing an effect the seam skipped.
+1. More than one `NnRootCommand`, or `InteractivityOptions` declared anywhere but the root. [Checked]
+2. A subcommand not declared as an extension of the root or of its group. [Generated]
+3. A group command with options or a `run()`. [Generated]
+4. A factory method for a feature, or a store vended by the factory. [Judgment]
+5. Interactivity read anywhere but the default factory, including an `isInteractive` value passed to a stage, use case, or brief. [Judgment]
+6. A seam with a skipping variant that returns no outcome, or a report announcing an effect the seam skipped. [Judgment]
 
 **Command** (universal rules 4 to 9, 11, 12, and 14)
 
-7. A command other than a group that is not an `NnWorkflowCommand`.
-8. A store, use case, or client, or a dependency two stages share, built outside `makeWorkflow()` or its group's `<Group>Assembly`.
-9. A `<Group>Assembly` that builds a stage, reads interactivity, takes more than the `CommandContext` and values `makeWorkflow()` holds, or is called from anywhere but `makeWorkflow()`.
-10. A final report written anywhere but `handleResults`, or composed anywhere but `<Feature>ResultsFormatter`; any `print` or direct standard-error write under `Sources/`.
-11. A `<Feature>Workflow` with behavior beyond its five `let`s.
-12. Conflicting flags not rejected in `validate()`, an `Input` holding ArgumentParser types, or Options and Input on a command with no flags; the same flag with the same meaning declared in two commands' Options instead of a shared `<Concern>Options`, or a shared settings value split back into separate Findings or Context fields.
-13. An empty `abstract`, or prompts with no flag equivalent and no mention of it in `discussion`.
-14. A mode enum or Bool switched on in more than one stage, or checked again in `makeWorkflow()`.
+7. A command other than a group that is not an `NnWorkflowCommand`. [Generated]
+8. A store, use case, or client, or a dependency two stages share, built outside `makeWorkflow()` or its group's `<Group>Assembly`. [Judgment]
+9. A `<Group>Assembly` that builds a stage, reads interactivity, takes more than the `CommandContext` and values `makeWorkflow()` holds, or is called from anywhere but `makeWorkflow()`. [Judgment]
+10. A final report written anywhere but `handleResults`, or composed anywhere but `<Feature>ResultsFormatter` [Judgment]; any `print` under `Sources/` [Checked]; any direct standard-error write under `Sources/` [Judgment].
+11. A `<Feature>Workflow` with behavior beyond its five `let`s. [Generated]
+12. Conflicting flags not rejected in `validate()`, an `Input` holding ArgumentParser types, or Options and Input on a command with no flags; the same flag with the same meaning declared in two commands' Options instead of a shared `<Concern>Options`, or a shared settings value split back into separate Findings or Brief fields. [Judgment]
+13. An empty `abstract` [Generated], or prompts with no flag equivalent and no mention of it in `discussion` [Judgment].
+14. A mode enum or Bool switched on in more than one stage, or checked again in `makeWorkflow()`. [Judgment]
 
 **Inspect** (the Inspect stage rule)
 
-15. An inspector that changes what the user owns (writing files, moving branches, pushing, prompting), or one that throws for an unreachable source instead of reporting it as a fact.
-16. An inspector that chooses between options, throws for a missing thing instead of returning `nil`, or throws a `<Feature>Error`.
-17. A `try?` in an inspector that folds a failure into `nil` when its reason is what the user needs to fix it.
+15. An inspector that changes what the user owns (writing files, moving branches, pushing, prompting), or one that throws for an unreachable source instead of reporting it as a fact. [Judgment]
+16. An inspector that chooses between options, throws for a missing thing instead of returning `nil`, or throws a `<Feature>Error`. [Judgment]
+17. A `try?` in an inspector that folds a failure into `nil` when its reason is what the user needs to fix it. [Judgment]
 
 **Inspection interpreter** (its stage rule)
 
-18. A blocking fact collected and never thrown on.
-19. Prompt text, picker types, or collector-nested types on the inspection side, including a requirement or `Info` type nested in the collector.
-20. A classifying or throwing type named `*Facts`.
-21. A `*Selector` or "select" name for a choice nobody picks; a computed choice is a `<Field>Detector`.
+18. A blocking fact collected and never thrown on. [Judgment]
+19. Prompt text, picker types, or collector-nested types on the inspection side, including a requirement or `Info` type nested in the collector. [Judgment]
+20. A classifying or throwing type named `*Facts`. [Judgment]
+21. A `*Selector` or "select" name for a choice nobody picks; a computed choice is a `<Field>Detector`. [Judgment]
 
 **Collect** (its stage rule)
 
-22. A collector or prompter that reads facts or findings.
-23. Control flow in the collector beyond sequencing prompters, threading answers, and returning early when an answer makes the rest moot; follow-ups belong to the prompter.
-24. An `Answers` field for something that was not asked.
-25. A prompt without `flagHint` in a command that has Options.
-26. A hand-written empty collector instead of `NnPassthroughCollector`.
+22. A collector or prompter that reads facts or findings. [Judgment]
+23. Control flow in the collector beyond sequencing prompters, threading answers, and returning early when an answer makes the rest moot; follow-ups belong to the prompter. [Judgment]
+24. An `Answers` field for something that was not asked. [Judgment]
+25. A prompt without `flagHint` in a command that has Options. [Judgment]
+26. A hand-written empty collector instead of `NnPassthroughCollector`. [Generated]
 
-**Collection interpreter and resolve** (their stage rules)
+**Collection interpreter and perform** (their stage rules)
 
-27. A `Context` missing something the resolver then looks up from findings or requirements.
-28. A resolver or use case prompting for an input the command needed up front.
-29. A resolver that writes output, or a use-case property that is not an agent noun.
-30. A use case whose `run` only forwards one call to a store, or a store injected into a resolver for work beyond one read or write.
+27. A `Brief` missing something the performer then looks up from findings or requirements. [Judgment]
+28. A performer or use case prompting for an input the command needed up front. [Judgment]
+29. A performer that writes output, or a use case that is not named as an agent noun. [Judgment]
+30. A use case whose `run` only forwards one call to a store, or a store injected into a performer for work beyond one read or write. [Judgment]
 
 **Errors, layout, and style** (universal rule 10; `references/architecture.md` sections 4, 5, 6, and 7; `references/style.md`)
 
-31. A tool-wide error enum, or an error message that does not say what to do next.
-32. A payload type outside the place `references/architecture.md` section 4 gives it.
-33. A folder holding both loose files and subfolders (apart from a feature's or group's root file), a file in `Shared/` that only one feature uses, or a prompter in the wrong role folder: one a use case asks in `Collector/Prompters/`, or one the collector asks in `FollowUps/`.
-34. An interpreter, collector, prompter, or formatter in a library target, or a library target that depends on NnArgumentParser, ConsoleProgressKit, or SwiftPickerKit.
-35. Default parameter values under `Sources/`.
-36. `isX` Bool names.
+31. A tool-wide error enum [Generated], or an error message that does not say what to do next [Judgment].
+32. A payload type outside the place `references/architecture.md` section 4 gives it. [Generated]
+33. A folder holding both loose files and subfolders (apart from a feature's or group's root file, or `<Feature>Collector.swift` beside `Prompters/`), a file in `Shared/` that only one feature uses, or a prompter in the wrong role folder: one a use case asks in `Collector/Prompters/`, or one the collector asks in `FollowUps/`. [Judgment]
+34. An interpreter, collector, prompter, or formatter in a library target, or a library target that depends on NnArgumentParser, ConsoleProgressKit, or SwiftPickerKit. [Checked]
+35. Default parameter values under `Sources/`. [Judgment]
+36. `isX` names on stored Bool properties. [Judgment]
 
-**Interruption, concurrency, and progress** (universal rules 2, 3, 12, and 13; the Inspect and Resolve stage rules)
+**Interruption, concurrency, and progress** (universal rules 2, 3, 12, and 13; the Inspect and Perform stage rules)
 
-37. An interactive `SwiftPicker` built without `interruptBehavior: .waitForTermination`.
-38. An `NnOutput` writer or `NnInterrupt` cleanup registered anywhere but `Root.makeContext()`.
-39. The `ChildProcesses.terminateAll(gracePeriod:)` cleanup missing from `Root.makeContext()`.
-40. `contextFactory`, `Root.makeContext()`, or `InteractionMode.current` read from `Task.detached`.
-41. A task group or other concurrent work in a resolver body instead of a use case.
-42. An unstructured `Task { }` in a stage or use case used to reach async work from a synchronous body; the signature becomes `async throws` instead.
-43. A `LiveProgressDisplay` or `PlainProgressDisplay` constructed anywhere but `DefaultContextFactory`, or a display whose `restoreTerminal()` is not registered as an `NnInterrupt` cleanup in `Root.makeContext()`.
-44. An inspector that takes a progress display, in any target.
+37. An interactive `SwiftPicker` built without `interruptBehavior: .waitForTermination`. [Checked]
+38. An `NnOutput` writer or `NnInterrupt` cleanup registered anywhere but `Root.makeContext()`. [Checked]
+39. The `ChildProcesses.terminateAll(gracePeriod:)` cleanup missing from `Root.makeContext()`. [Generated]
+40. `contextFactory`, `Root.makeContext()`, or `InteractionMode.current` read from `Task.detached`. [Judgment]
+41. A task group or other concurrent work in a performer body instead of a use case. [Judgment]
+42. An unstructured `Task { }` in a stage or use case used to reach async work from a synchronous body; the signature becomes `async throws` instead. [Checked]
+43. A `LiveProgressDisplay` or `PlainProgressDisplay` constructed anywhere but `DefaultContextFactory` [Checked], or a display whose `restoreTerminal()` is not registered as an `NnInterrupt` cleanup in `Root.makeContext()` [Judgment].
+44. An inspector that takes a progress display, in any target. [Judgment]
 
 **Flow files** (`references/flow-format.md`)
 
-45. A leaf command without `Flows/<command path>.md`, a flow file with no command, or a flow file whose steps, questions, stops, or Code line disagree with the code.
+45. A leaf command without `Flows/<command path>.md`, or a flow file with no command [Checked]; a flow file whose steps, questions, stops, or Code line disagree with the code [Judgment].
+
+**Names** (`nn-architecture`, Choosing a name, rule 6)
+
+46. A type a project named with a catch-all word (Manager, Helper, Handler, Processor, Service, Util, or Utility) [Generated].
 
 ## Completion
 

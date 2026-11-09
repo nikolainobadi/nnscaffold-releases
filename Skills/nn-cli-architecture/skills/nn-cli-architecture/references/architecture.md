@@ -66,7 +66,7 @@ A feature that builds the seam itself in `makeWorkflow()` instead bypasses the f
 
 The primitives come from NnShellKit, NnFileKit, and SwiftPickerKit. A tool may re-export them through its own `<Tool>ShellKit`-style targets so feature code imports one module per concern; that is a packaging choice and changes none of the rules here.
 
-Stores (configuration files, pending-state folders) are not factory products. They are built in `makeWorkflow()` from the file system the factory vended, and injected into the inspector, resolver, or use case that needs them.
+Stores (configuration files, pending-state folders) are not factory products. They are built in `makeWorkflow()` from the file system the factory vended, and injected into the inspector, performer, or use case that needs them.
 
 ## 3. Command shape
 
@@ -79,11 +79,11 @@ extension Root {
 
         func makeWorkflow() throws -> FeatureWorkflow {
             let context = Root.makeContext()
-            // build stores, inspector, collector, resolver from context
-            return .init(inspector: …, inspectionInterpreter: .init(input: options.makeInput()), collector: …, collectionInterpreter: .init(), resolver: …)
+            // build stores, inspector, collector, performer from context
+            return .init(inspector: …, inspectionInterpreter: .init(input: options.makeInput()), collector: …, collectionInterpreter: .init(), performer: …)
         }
 
-        func handleResults(_ results: FeatureCommandResolver.Results) throws {
+        func handleResults(_ results: FeaturePerformer.Results) throws {
             if let message = FeatureResultsFormatter.message(for: results) {
                 NnOutput.write(message)
             }
@@ -98,7 +98,7 @@ extension Root {
 - `<Feature>Workflow` is a struct of five `let` properties conforming to `NnWorkflow`. It has no behavior of its own.
 - `<Feature>Options` and `<Feature>Input` follow universal rule 9; `validate()` rejects conflicting pairs with `ValidationError`. Every Input field is explicit. Optional fields mean "the caller did not decide this"; the inspection interpreter turns each into a requirement.
 - `<Feature>ResultsFormatter` is a caseless enum with `static func message(for:) -> String?`, called from `handleResults` (universal rule 8). Progress or warnings during work are written by the use case that produced them: through the progress display. Progress during inspection is the one exception, and comes from `NnTrackedInspector` (section 2). Text that sets up a prompt (a suggestion to accept, a summary before a confirmation) belongs with that prompt and is written the same way. `NnOutput` routes every write through the registered writer, suppresses writes once an interrupt is being handled, and is the only output `testRun` captures.
-- Stage methods may be `async`. `nnscaffold` generates `inspect()` and `resolve(context:)` as synchronous `throws`; a stage that awaits anything changes its signature to `async throws`. Never bridge with `Task { }`: the stage would return before the work finishes and its errors would be lost. The workflow runs on an executor that tolerates blocking, so synchronous shell and file work inside a stage is fine. Where concurrent work lives is set by the Resolve stage rule. Command-scoped state is inherited by child tasks but not by `Task.detached` (universal rule 13).
+- Stage methods may be `async`. `nnscaffold` generates `inspect()` and `perform(brief:)` as synchronous `throws`; a stage that awaits anything changes its signature to `async throws`. Never bridge with `Task { }`: the stage would return before the work finishes and its errors would be lost. The workflow runs on an executor that tolerates blocking, so synchronous shell and file work inside a stage is fine. Where concurrent work lives is set by the Perform stage rule. Command-scoped state is inherited by child tasks but not by `Task.detached` (universal rule 13).
 
 ## 4. Stage payload types and where they live
 
@@ -108,15 +108,15 @@ extension Root {
 | Findings | `<Feature>Findings` | `Models/` |
 | Requirements | `<Feature>Requirements`, one `NnRequirement<Value, Info>` per missing input | `Models/` |
 | Info for an unknown requirement | nested in `<Feature>Requirements` (`Requirements.UnknownVersion`) | `Models/`, same file as `<Feature>Requirements` |
-| Answers | `<Feature>CommandCollector.Answers` (nested) | `Collector/<Feature>CommandCollector.swift`, under `// MARK: - Dependencies` |
-| Context | `<Feature>CommandResolver.Context` (nested) | `Resolver/<Feature>CommandResolver.swift`, under `// MARK: - Dependencies` |
-| Results and summaries | `<Feature>CommandResolver.Results`, `<Feature>CommandResolver.<Case>Summary` | `Resolver/<Feature>CommandResolver.swift`, under `// MARK: - Dependencies` |
-| A payload part used by sibling features, held by each one's Findings and Context | `<Group><Concern>` | `<Group>/Shared/Models/` |
+| Answers | `<Feature>Collector.Answers` (nested) | `Collector/<Feature>Collector.swift`, under `// MARK: - Dependencies` |
+| Brief | `<Feature>Performer.Brief` (nested) | `Performer/<Feature>Performer.swift`, under `// MARK: - Dependencies` |
+| Results and summaries | `<Feature>Performer.Results`, `<Feature>Performer.<Case>Summary` | `Performer/<Feature>Performer.swift`, under `// MARK: - Dependencies` |
+| A payload part used by sibling features, held by each one's Findings and Brief | `<Group><Concern>` | `<Group>/Shared/Models/` |
 | Flags several commands share | `<Concern>Options: ParsableArguments`, with `makeInput()` | `Shared/Command/` of the closest folder holding every command that uses it |
 | Their plain values | `<Concern>Input` | same folder as `<Concern>Options` |
-| What the inspection interpreter derives from them | `<Concern>Settings`, held whole by each command's Findings and Context | `Shared/Models/` of the same folder |
+| What the inspection interpreter derives from them | `<Concern>Settings`, held whole by each command's Findings and Brief | `Shared/Models/` of the same folder |
 
-The collection interpreter passes a shared payload part from the findings into the Context unchanged. The Context then carries it, so the resolver never reaches back into findings.
+The collection interpreter passes a shared payload part from the findings into the Brief unchanged. The Brief then carries it, so the performer never reaches back into findings.
 
 A `<Concern>Settings` is built in one place: a shared interpreter helper takes the `<Concern>Input` plus any facts it needs, and every inspection interpreter calls it, so the checks behind those settings (such as a missing git author) live once. When the flags pass through unchanged, the Settings fields copy the Input's; keep the type anyway, so the Input still stops at the inspection interpreter.
 
@@ -127,7 +127,7 @@ Requirement and Info types sit in `Models/`, owned by the feature, because both 
 Inspectors, stores, detectors, and use cases may live in library targets. A library target doesn't depend on NnArgumentParser, ConsoleProgressKit, or SwiftPickerKit: it holds logic that isn't tied to a terminal, so it stays reusable and testable without one. An inspector there exposes `func inspect() throws -> Facts` (or `async throws` when a read is asynchronous); the executable adopts the stage protocol with an empty extension in `Features/<Feature>/Extensions/`:
 
 ```swift
-extension ProjectInspector: @retroactive NnCommandInspector { }
+extension ProjectInspector: @retroactive NnInspector { }
 ```
 
 Interpreters, collectors, prompters, formatters, and the command itself stay in the executable: they are the tool's opinions, not reusable logic. A use case that tracks work also stays in the executable, because it takes `any ProgressDisplay`.
@@ -136,7 +136,7 @@ A new library target in the Core package comes from `nnscaffold cli add-kit`, ne
 
 ## 6. Errors
 
-One error enum per feature, `<Feature>Error: Error, Equatable`, with a `LocalizedError` conformance in an extension. Each message tells the user what to do next, not only what went wrong. It lives in `Features/<Feature>/Workflow/`.
+One error enum per feature, `<Feature>Error: Error, Equatable`, with a `LocalizedError` conformance in an extension. Each message tells the user what to do next, not only what went wrong. A failure after the first change also follows **Say where things stand** in the `nn-architecture` skill. It lives in `Features/<Feature>/Workflow/`. A shared helper's error lives in the `Workflow/` of the closest `Shared/` that holds every feature using the helper.
 
 Which stages throw it is set by the stage rules in `SKILL.md`. There is no tool-wide error enum: a feature's failures travel with the feature when it is added or removed.
 
@@ -169,13 +169,13 @@ Sources/<tool>/
           <Feature>CollectionInterpreter.swift
         Shared/                     helpers both interpreters use; omit when empty
       Collector/
-        <Feature>CommandCollector.swift
+        <Feature>Collector.swift
         Prompters/
           <Value>Prompter.swift
-      Resolver/
-        <Feature>CommandResolver.swift
+      Performer/
+        <Feature>Performer.swift
       UseCases/
-        <Verb><Noun>UseCase.swift
+        <AgentNoun>.swift           a use case, named for its job, such as TagCreator.swift
       FollowUps/
         <Value>Prompter.swift       a follow-up a use case asks once the work has produced something
       Formatter/
@@ -205,27 +205,30 @@ Sources/<tool>/
 
 Rules:
 
-- A folder holds files or subfolders, never both. The one exception is a feature's or group's root file beside its subfolders.
+- A folder holds files or subfolders, never both. The exceptions are a feature's or group's root file beside its subfolders, and `<Feature>Collector.swift` beside `Prompters/`.
 - Omit any role folder the feature does not need. A passthrough command has no `Collector/`, but may have `FollowUps/`.
 - A file starts in the feature that needed it and moves to `Shared/` only when a second feature uses it. It goes in the `Shared/` of the closest folder that holds every feature using it: the group's folder when they share a group, `Features/` otherwise.
 - A feature is the unit of deletion: removing its folder removes everything it owned.
-- Prompters come from `nnscaffold cli add-prompter`. A prompter the collector asks goes into `Collector/Prompters/`, `<Group>/Shared/Prompters/`, or `Shared/Prompters/`. A follow-up prompter a use case asks (`--stage resolve`) goes into `FollowUps/`, `<Group>/Shared/FollowUps/`, or `Shared/FollowUps/`; `Resolver/` and `UseCases/` hold files, so it gets its own role folder. Interpreter helpers (`<Name>Detector`, `Validator`, `Classifier`, `Builder`) come from `nnscaffold cli add-helper`, into the feature's `Interpreters/Inspection/`, `Interpreters/Collection/`, or `Interpreters/Shared/`, or into `<Group>/Shared/Interpreters/` or `Shared/Interpreters/`. Each also writes its test file in the mirrored test folder.
+- Prompters come from `nnscaffold cli add-prompter`. A prompter the collector asks goes into `Collector/Prompters/`, `<Group>/Shared/Prompters/`, or `Shared/Prompters/`. A follow-up prompter a use case asks (`--stage perform`) goes into `FollowUps/`, `<Group>/Shared/FollowUps/`, or `Shared/FollowUps/`; `Performer/` and `UseCases/` hold files, so it gets its own role folder. Interpreter helpers (`<Name>Detector`, `Validator`, `Classifier`, `Builder`) come from `nnscaffold cli add-helper`, into the feature's `Interpreters/Inspection/`, `Interpreters/Collection/`, or `Interpreters/Shared/`, or into `<Group>/Shared/Interpreters/` or `Shared/Interpreters/`. Each also writes its test file in the mirrored test folder.
 - `<Group>/Shared/Interpreters/` and `Shared/Interpreters/` are either loose helpers or split into `Inspection/`, `Collection/`, and `Shared/` subfolders, never a mix. `add-helper` follows the shape already there: loose helpers take only `--stage shared`, and a split folder takes any stage. Split a crowded folder by hand; the tool cannot tell a loose helper's stage from where it sits.
 - A helper's own result type (what a detector returns) is nested in the helper under `// MARK: - Dependencies` and stays in its file.
 - Every leaf command has a flow file at `<tool>/Flows/<command path>.md`, at the package root beside `Sources/`, never inside it. A group is a folder in `Flows/`. Its format is in `references/flow-format.md`, and a feature's removal removes its flow file too.
-- Any other value type that is not a stage payload, such as a value an interpreter builds and hands to its helpers, goes in `Models/` of the feature that uses it. When a second feature uses it, it moves to the `Models/` of the closest `Shared/`, like any other file. If Findings or Context starts holding it, it becomes a payload part under section 4.
+- Any other value type that is not a stage payload, such as a value an interpreter builds and hands to its helpers, goes in `Models/` of the feature that uses it. When a second feature uses it, it moves to the `Models/` of the closest `Shared/`, like any other file. If Findings or Brief starts holding it, it becomes a payload part under section 4.
 
 ## 8. Testing shape
 
-Three kinds of test, in order of preference. Read `TestingReference.md` in the NnArgumentParser skill for the API before writing any of them.
+Four kinds of test, in order of preference. Read `TestingReference.md` in the NnArgumentParser skill for the API before writing any of them.
 
 1. **Interpreters as pure functions.** Build the facts (or findings, requirements, answers) by hand, call `interpret`, assert on the result or the thrown `<Feature>Error`. No mocks needed.
-2. **Workflow wiring.** Build a `<Feature>Workflow` with `MockCommandInspector`, `MockCommandCollector`, and `MockCommandResolver` around the real interpreters, run it, and assert on `capturedRequirements` and `capturedContexts`.
+2. **Workflow wiring.** Build a `<Feature>Workflow` with `MockInspector`, `MockCollector`, and `MockPerformer` around the real interpreters, run it, and assert on `capturedRequirements` and `capturedBriefs`.
 3. **Whole command.** Drive the root with `try await testRun`, passing the test factory vending mock infrastructure, the command's arguments, and the interaction mode explicitly; assert on the captured `NnOutput` output or on what the mocks recorded. Progress written through a display is not captured; the test factory vends `MockProgressDisplay` from the `ConsoleProgressTesting` product, and the test asserts on what it recorded (`trackedTitles`, each activity's `updates` and `outcome`, `notes`). A use-case test injects its own `MockProgressDisplay` the same way. A tracked inspector's title shows up in `trackedTitles` on the factory's display, and the inspector's own tests need no mock display. Interrupt cleanups are tested through `testRunCapturingCleanups`, which returns them without running them; run them and assert `terminalWasRestored` on the factory's display.
+4. **Performers and use cases.** Test each use case for its own knowledge, through its public surface, with real collaborators and mocks only for what fronts something outside the program. Test a performer only for its sequence: the order of its steps, what each step receives, and that a failure stops the steps after it. The Testing section of the `nn-architecture` skill has the rule.
 
 Tests live in `Tests/<tool>Tests/`, mirroring the path below `Sources/<tool>/`: `Tests/<tool>Tests/Features/<Feature>/`, or `Tests/<tool>Tests/Features/<Group>/<Feature>/` for a grouped command, with the same role subfolders. The test factory and any shared helper live in `Tests/<tool>Tests/Shared/`. Test code may use default parameter values; production code may not.
 
 `Tests/<tool>Tests/Main/FlowFilesTests.swift` fails when a leaf command has no flow file or a flow file has no command (`references/flow-format.md`). `nnscaffold cli init` writes it, and `nnscaffold cli add-flow-tests` adds it to a tool created before flow files. It is generated and never edited.
+
+`Tests/<tool>Tests/Main/ArchitectureRulesTests.swift` fails when the tool breaks a Don't list item marked Checked, except the flow-file item, and each failure names the file and the rule. Its scans read only the tool's own `Sources/`. `nnscaffold cli init` writes it, and `nnscaffold cli add-architecture-tests` adds it to an existing tool and replaces it when the rules change. It is generated and never edited.
 
 When commands share a `<Concern>Settings`, the test factory has two helpers for it: one that takes every field, for tests that check those fields, and short ones that fix the fields a test does not care about (`make<Concern>Settings(previewRequested:)`). Tests that do not check the shared values use the short helpers, so adding a field to the settings changes only the factory and the tests that check it.
 

@@ -12,11 +12,11 @@ Read `references/architecture.md` completely, `references/style.md` completely, 
 
 ## 3. Map the code onto the stages
 
-Read the code in scope. For each type, decide its role (root, factory, command, options, input, inspector, inspection interpreter, detector, collector, prompter, collection interpreter, resolver, use case, formatter, payload model, error) by what it does, not by its name or folder. Note every type whose behavior spans two roles, and every type whose name or folder disagrees with its role. Those mismatches are findings in their own right.
+Read the code in scope. For each type, decide its role (root, factory, command, options, input, inspector, inspection interpreter, detector, collector, prompter, collection interpreter, performer, use case, formatter, payload model, error) by what it does, not by its name or folder. Note every type whose behavior spans two roles, and every type whose name or folder disagrees with its role. Those mismatches are findings in their own right.
 
 ## 4. Check
 
-1. Walk the Don't list in `SKILL.md` against every type in scope, using the roles from step 3.
+1. Walk the Don't list in `SKILL.md` against every type in scope, using the roles from step 3. Follow each item's mark: for Generated, check only code changed after generation; for Checked, skip the item if the project has that test (`ArchitectureRulesTests.swift` or `FlowFilesTests.swift`), and check it by reading if not; for Judgment, read the code closely.
 2. Check each feature folder against `references/architecture.md` section 7, and each payload type against section 4.
 3. Check each Swift file against `references/style.md`: header, comments, type body, MARK order, nesting, expressions, naming. The header check follows the project's convention: a file without a header is a violation only when the project's other Swift files have one.
 4. Tests only when in scope: check their layout and kind against `references/architecture.md` section 8. For test-file internals, defer to the NnArgumentParser skill's `TestingReference.md`.
@@ -33,7 +33,7 @@ One entry per violation:
 - **What**: one sentence naming the violation by role.
 - **Fix**: one or two sentences describing the change in words.
 
-Order entries by stage (root and dependencies, command, inspect, inspection interpreter, collect, collection interpreter, resolve, then errors, layout, style, interruption, concurrency, and progress, tests, flow files), and by file within a stage. Group repeats of one violation (a missing header in twelve files) into a single entry with the file list. If nothing in scope fails, say so in one sentence.
+Order entries by stage (root and dependencies, command, inspect, inspection interpreter, collect, collection interpreter, perform, then errors, layout, style, interruption, concurrency, and progress, tests, flow files), and by file within a stage. Group repeats of one violation (a missing header in twelve files) into a single entry with the file list. If nothing in scope fails, say so in one sentence.
 
 ## Constraints
 

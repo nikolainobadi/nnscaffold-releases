@@ -18,12 +18,12 @@ Decide every row before any file. Each decision is written once: what the spec c
 | Requirements | `requirements`: each input's `value`, its `info` for when it is `.unknown`, its `prompter`, and `optional` when only some runs have it | when each is `.known` (which flag or fact settles it), and when an optional one applies |
 | Answers | nothing: generated from the requirements | none |
 | Helpers | `helpers`, with `examples` for what each returns or throws | none: the examples are the behavior |
-| Context | `context`: every field the resolver needs, and nothing the resolver must look up itself | how the collection interpreter builds it |
-| Results | `results`: one case per outcome, with the summary each carries | which resolver step ends in each case |
+| Brief | `brief`: every field the performer needs, and nothing the performer must look up itself | how the collection interpreter builds it |
+| Results | `results`: one case per outcome, with the summary each carries | which performer step ends in each case |
 | Use cases | `useCases`: dependencies and the method signature | the steps of each method body |
 | Report | nothing | what the formatter's message says for each results case |
 
-If every requirement is always `.known`, the command uses `NnPassthroughCollector` and `NnPassthroughCollectionInterpreter<Findings>`, its Context is its Findings (the spec has no `context`), and it has no `Collector/` folder.
+If every requirement is always `.known`, the command uses `NnPassthroughCollector` and `NnPassthroughCollectionInterpreter<Findings>`, its Brief is its Findings (the spec has no `brief`), and it has no `Collector/` folder.
 
 If inspection makes network calls (`git fetch`, `gh`, an API), plan to wrap the inspector in `NnTrackedInspector`, and put the message it shows in the behavior notes. Step 4b has the edits.
 
@@ -96,13 +96,12 @@ The spec is the plan's decisions from steps 1 and 2, in JSON. Keep it beside the
   ],
   "useCases": [
     {
-      "name": "CreateTag",
-      "property": "tagCreator",
+      "name": "TagCreator",
       "dependencies": [{ "name": "shell", "type": "any Shell", "from": "context.shell" }],
       "method": { "name": "create", "params": [{ "name": "version", "type": "String" }], "throws": true }
     }
   ],
-  "context": [{ "name": "version", "type": "String" }, { "name": "target", "type": "TagTarget" }, { "name": "pushAction", "type": "PushAction?" }],
+  "brief": [{ "name": "version", "type": "String" }, { "name": "target", "type": "TagTarget" }, { "name": "pushAction", "type": "PushAction?" }],
   "results": [{ "case": "tagged", "summary": [{ "name": "version", "type": "String" }, { "name": "pushed", "type": "Bool" }] }, { "case": "dryRun" }],
   "facts": [{ "name": "tagNames", "type": "[String]" }, { "name": "workingTreeIsClean", "type": "Bool" }],
   "findings": [{ "name": "headCommit", "type": "String" }, { "name": "dryRun", "type": "Bool" }],
@@ -127,12 +126,12 @@ The spec is the plan's decisions from steps 1 and 2, in JSON. Keep it beside the
 - **`models`** are every other type the command defines: a model with `fields` becomes a `Sendable, Equatable` struct, and one with `cases` becomes a `Sendable, Equatable` enum whose cases are names or `{ "name", "values" }` objects with associated values. Each is written to `Models/<Name>.swift`.
 - **`helpers`** are the command's interpreter helpers, written with their tests to `Interpreters/<Stage>/` exactly as `add-helper` writes them: `name` without the role suffix, `role`, `stage`, and the `params`, `returns`, and `throws` the `add-helper` flags take. Put every helper the plan names here instead of running `add-helper` for each.
 - **`examples`** on a helper become its tests. Each example gives one value for every parameter in `given` (`value` when the helper has no `params`) and exactly one of `expect`, the return value, or `throws`, the `<Feature>Error` it throws (the helper needs `"throws": true`, or the validator role). For a `String` or `String?` parameter or return type, a JSON string is the text itself: `"main"` becomes `"main"` in the test, quoted and escaped for you. For any other type, a JSON string is Swift source written out as given: `".behind"` an enum case, `"[]"`, `".invalidVersion(version: \"1.x\")"`. JSON numbers and booleans are written as they are, and `null` becomes `nil`. The `expect` examples become one `@Test(arguments:)` over a typed `examples` list and the `throws` examples another, so the helper's tests exist before its body. Each starts with `.disabled("nnscaffold: implement <Helper>.<method>, then remove this trait")`, so the stub's `fatalError` can't crash the test run; the report's placeholder search lists it. Write each helper body, then remove the trait so its examples run. A helper with examples can't have a parameter named `expected`, since the tests use that name for the result. A helper without examples gets the `makeSUT`-only test file.
-- **`useCases`** are the command's use cases, written with their tests to `UseCases/<Name>UseCase.swift`. `name` leaves off the `UseCase` suffix, and `property` is the agent noun the resolver holds it as (`tagCreator`). Each dependency becomes a stored property and `init` parameter, and `from` is the expression `makeWorkflow()` passes for it (`context.shell`, or a store built in `makeWorkflow()`). `method` has a `name`, `params`, `returns`, and `throws` and `async` flags; its body is the stub left to write. The resolver gets a stored property and `init` for every use case, `makeWorkflow()` builds each one, and the resolver test's `makeSUT` takes them. When the same `from` expression appears in more than one inspector or use-case dependency, and each of them has the same `name`, `makeWorkflow()` builds it once as `let <name> = <from>` and passes `<name>` to each stage. A `from` that only reads a value (`context.shell`, `options.spec`) is passed as it is. Dependencies whose names differ are each built from their own `from`, so give a dependency two stages share the same name in both places.
-- **Every type the spec names must exist.** A type counts when it is a Swift or Foundation built-in, a factory product (`Shell`, `FileSystem`, `Directory`, `CommandLinePicker`, `ProgressDisplay`), one of the spec's enums or models, a nested Info type, one of the feature's generated types, a type declared in the tool's target or its Core package, or listed in `knownTypes`. List a type from another package (`GitClient` from a dependency) in `knownTypes`. Any other type stops the run, naming each one, so the build stays green after generation.
-- **`context`** fills the resolver's nested `Context` struct. A passthrough command has no `context`, because its Context is its Findings.
-- **`results`** turns the resolver's `Results` into an enum with one case per entry. `case` names it, and a `summary` gives it a payload: `"case": "tagged"` with a summary becomes `case tagged(TaggedSummary)` plus a nested `struct TaggedSummary`, and a case without one is a plain case. The formatter gets a `switch` with a stub in each arm, so only the message text is left. The workflow tests' mock resolver returns a case without a summary, or one whose summary fields all have empty values; when no case qualifies, the run stops.
+- **`useCases`** are the command's use cases, written with their tests to `UseCases/<Name>.swift`. `name` is the full type name, an agent noun such as `TagCreator`; one ending in `UseCase` or using a catch-all word stops the run. The property the performer holds it as is the type name with its whole leading acronym lowercased (`TagCreator` gives `tagCreator`, `URLFetcher` gives `urlFetcher`). Each dependency becomes a stored property and `init` parameter, and `from` is the expression `makeWorkflow()` passes for it (`context.shell`, or a store built in `makeWorkflow()`). `method` has a `name`, `params`, `returns`, and `throws` and `async` flags; its body is the stub left to write. The performer gets a stored property and `init` for every use case, `makeWorkflow()` builds each one, and the performer test's `makeSUT` takes them. When the same `from` expression appears in more than one inspector or use-case dependency, and each of them has the same `name`, `makeWorkflow()` builds it once as `let <name> = <from>` and passes `<name>` to each stage. A `from` that only reads a value (`context.shell`, `options.spec`) is passed as it is. Dependencies whose names differ are each built from their own `from`, so give a dependency two stages share the same name in both places.
+- **Every type the spec names must exist.** A type counts when it is a Swift or Foundation built-in, a factory product (`Shell`, `FileSystem`, `Directory`, `CommandLinePicker`, `ProgressDisplay`), one of the spec's enums or models, a nested Info type, one of the feature's generated types, a type declared in the tool's target or its Core package, or listed in `knownTypes`. List a type from another package (`GitClient` from a dependency) in `knownTypes`. Any other type stops the run, naming each one, so the build stays green after generation. A factory product still has to be imported, so a spec that names one with an empty `imports` also stops the run: add the tool's ShellKit for `Shell`, its FileKit for `FileSystem` or `Directory`, `SwiftPickerKit` for `CommandLinePicker`, and `ConsoleProgressKit` for `ProgressDisplay`.
+- **`brief`** fills the performer's nested `Brief` struct. A passthrough command has no `brief`, because its Brief is its Findings.
+- **`results`** turns the performer's `Results` into an enum with one case per entry. `case` names it, and a `summary` gives it a payload: `"case": "tagged"` with a summary becomes `case tagged(TaggedSummary)` plus a nested `struct TaggedSummary`, and a case without one is a plain case. The formatter gets a `switch` with a stub in each arm, so only the message text is left. The workflow tests' mock performer returns a case without a summary, or one whose summary fields all have empty values; when no case qualifies, the run stops.
 - **`errors`** become the cases of `<Feature>Error`. A `message` is the case's `errorDescription`, written as plain text with `{name}` for each value it shows; every placeholder must name one of the case's `values`. A case without a `message` keeps a placeholder.
-- **The spec settles two flags.** Requirements or context make the command collecting, and arguments, options, or flags make it take Options. Passing `--passthrough` or `--no-options` against them stops the run.
+- **The spec settles two flags.** Requirements or a brief make the command collecting, and arguments, options, or flags make it take Options. Passing `--passthrough` or `--no-options` against them stops the run.
 - Any conditional skip in the collector stays out of the spec and is written in step 4b.
 
 ## 3. File table
@@ -146,20 +145,20 @@ The table below is the layout instantiated once, for an illustrative `tag-releas
 | `Command/TagRelease.swift` | `Root.TagRelease: NnWorkflowCommand`; `makeWorkflow()` builds the use cases and stores from `Root.makeContext()` and passes the picker to the collector; `handleResults` writes the formatter's message with `NnOutput.write` |
 | `Command/TagReleaseOptions.swift` | `@Argument var version: String?`, `@Flag var dryRun`; `makeInput()` |
 | `Command/TagReleaseInput.swift` | `version: String?`, `dryRun: Bool` |
-| `Workflow/TagReleaseWorkflow.swift` | five `let`s: inspector, inspectionInterpreter, collector, collectionInterpreter, resolver |
+| `Workflow/TagReleaseWorkflow.swift` | five `let`s: inspector, inspectionInterpreter, collector, collectionInterpreter, performer |
 | `Workflow/TagReleaseError.swift` | `.notAGitRepository`, `.uncommittedChanges`, `.invalidVersion(String)`, `.notHigherThanLatest(latest:)`; `LocalizedError` messages that say what to do |
 | `Inspector/TagReleaseInspector.swift` | reads the repository through the shell; nested `Facts { repoRoot: String?, headCommit: String?, tagNames: [String], workingTreeIsClean: Bool }`; absent when the inspector lives in a library target |
 | `Models/TagReleaseFindings.swift` | `repoRoot`, `headCommit`, `latestTag: String?`, `dryRun` |
 | `Models/TagReleaseRequirements.swift` | `version: NnRequirement<String, UnknownVersion>`; nested `UnknownVersion { latestTag: String? }` |
 | `Interpreters/Inspection/TagReleaseInspectionInterpreter.swift` | throws for a missing repo or uncommitted changes; `version` is `.known` when the input has one, else `.unknown(.init(latestTag:))` |
 | `Interpreters/Inspection/LatestTagDetector.swift` | `static func detect(tagNames:) -> String?` |
-| `Interpreters/Collection/TagReleaseCollectionInterpreter.swift` | resolves `version`, validates it parses and exceeds `latestTag`, builds `Context` |
-| `Collector/TagReleaseCommandCollector.swift` | `requirements.version.ask(versionPrompter.collectVersion)`; returns `Answers`; nested `Answers { version: String? }` under `// MARK: - Dependencies` |
+| `Interpreters/Collection/TagReleaseCollectionInterpreter.swift` | resolves `version`, validates it parses and exceeds `latestTag`, builds `Brief` |
+| `Collector/TagReleaseCollector.swift` | `requirements.version.ask(versionPrompter.collectVersion)`; returns `Answers`; nested `Answers { version: String? }` under `// MARK: - Dependencies` |
 | `Collector/Prompters/VersionPrompter.swift` | offers bumps from `info.latestTag` or "enter a version", `flagHint: "<version>"` |
-| `Resolver/TagReleaseCommandResolver.swift` | `tagCreator`, `tagPusher` use cases; `.dryRun` returns without side effects; nested `Context { version, headCommit, dryRun }` and `Results { .tagged(TaggedSummary), .dryRun(version) }` under `// MARK: - Dependencies` |
-| `UseCases/CreateTagUseCase.swift`, `UseCases/PushTagUseCase.swift` | the git work, each taking its shell or git client in `init` |
+| `Performer/TagReleasePerformer.swift` | `tagCreator`, `tagPusher` use cases; `.dryRun` returns without side effects; nested `Brief { version, headCommit, dryRun }` and `Results { .tagged(TaggedSummary), .dryRun(version) }` under `// MARK: - Dependencies` |
+| `UseCases/TagCreator.swift`, `UseCases/TagPusher.swift` | the git work, each taking its shell or git client in `init` |
 | `Formatter/TagReleaseResultsFormatter.swift` | `message(for:)` for each results case |
-| `Extensions/<LibraryInspector>+NnCommandInspector.swift` | only when the inspector lives in a library target |
+| `Extensions/<LibraryInspector>+NnInspector.swift` | only when the inspector lives in a library target |
 
 ## 4. Generate the skeleton, then write the rest
 
@@ -191,7 +190,7 @@ nnscaffold cli add-command <name> --parent <parent> --abstract "<abstract>" --[n
 
 A missing flag makes the tool prompt, and without a terminal it fails. Add `--preview` to see the files and the parent edit without writing. Pass `--header` to every `nnscaffold` command in this workflow when the project's existing Swift files have a header comment (`references/style.md`); without it, files get none. If `nnscaffold` is not installed, stop and tell the user to install it with `brew install nikolainobadi/nn/nnscaffold`; never install it yourself or write the skeleton files by hand.
 
-The tool creates the stage files from the file table (`Command/`, `Workflow/<Feature>Workflow.swift`, `Workflow/<Feature>Error.swift` as an empty enum with its `LocalizedError` extension, the inspector or its `Extensions/` conformance, `Models/`, both interpreters, `Collector/` and its models, `Resolver/` and its models, `Formatter/`), adds `<Feature>Options` and `<Feature>Input` with `--options`, and registers the subcommand on the parent's `configuration`. Each stage body is a `fatalError("nnscaffold: implement …")` stub; the tool prints a search that lists them.
+The tool creates the stage files from the file table (`Command/`, `Workflow/<Feature>Workflow.swift`, `Workflow/<Feature>Error.swift` as an empty enum with its `LocalizedError` extension, the inspector or its `Extensions/` conformance, `Models/`, both interpreters, `Collector/` and its models, `Performer/` and its models, `Formatter/`), adds `<Feature>Options` and `<Feature>Input` with `--options`, and registers the subcommand on the parent's `configuration`. Each stage body is a `fatalError("nnscaffold: implement …")` stub; the tool prints a search that lists them.
 
 With `--spec`, the tool also fills in from the spec:
 - `<Feature>Options` (properties and `makeInput()`) and `<Feature>Input`;
@@ -199,40 +198,40 @@ With `--spec`, the tool also fills in from the spec:
 - the inspector's `Facts`, and its dependencies with their construction in `makeWorkflow()`;
 - an `@OptionGroup` for each option group;
 - the error cases, each with its message, or a placeholder when it has none;
-- the resolver's `Context` and `Results` with each case's summary, and the formatter's `switch` over every results case;
+- the performer's `Brief` and `Results` with each case's summary, and the formatter's `switch` over every results case;
 - the enums and models;
 - the helpers, each with its signature, and with parameterized tests from its examples;
-- the use cases with their tests, the resolver's use case properties and `init`, and their construction in `makeWorkflow()`;
+- the use cases with their tests, the performer's use case properties and `init`, and their construction in `makeWorkflow()`;
 - the collector's prompter properties and `.ask` calls, in spec order, and each new prompter with its tests; an existing prompter is asked but not created;
 - test factories that take every field.
 
 With `--inspector`, the command, workflow, interpreters, and tests name the existing inspector and its `Facts`, and no inspector files are generated. The workflow tests call the inspector's existing facts factory from `Tests/<tool>Tests/Shared/`, and no second one is written. An inspector another command wraps in `NnTrackedInspector` is copied without the wrapper, so make the step 4b edits if the new command should show progress too.
 
-Reusing an inspector puts it in a second feature, so move it to `Shared/` right after generating (`references/architecture.md` section 7): `Extensions/<Inspector>+NnCommandInspector.swift` for a Kit inspector, `Inspector/<Inspector>.swift` otherwise, into the `Shared/` of the closest folder holding both features. The same goes for a spec prompter a second command needs: move it to `<Group>/Shared/Prompters/` or `Shared/Prompters/` with its test file, and change its `info` parameter from one feature's Info type to the plain values it uses (`tools: [DebugTool]`).
+Reusing an inspector puts it in a second feature, so move it to `Shared/` right after generating (`references/architecture.md` section 7): `Extensions/<Inspector>+NnInspector.swift` for a Kit inspector, `Inspector/<Inspector>.swift` otherwise, into the `Shared/` of the closest folder holding both features. The same goes for a spec prompter a second command needs: move it to `<Group>/Shared/Prompters/` or `Shared/Prompters/` with its test file, and change its `info` parameter from one feature's Info type to the plain values it uses (`tools: [DebugTool]`).
 
-When the tool has a test target (`Tests/<tool>Tests/`), the tool also creates the command's test files there, in folders that mirror the feature folder: tests for the inspection interpreter, resolver, formatter, and workflow; for the collection interpreter and collector unless the command is passthrough; for the inspector when it stays in the feature folder; for the command itself when the project has a Core package; and `Shared/TestFactory+<Feature>.swift`. Each test file holds an empty test struct and its `makeSUT`, and helper example tests start disabled, so `swift test` passes before any test is written. The report lists them under `Tests to write:`. Without a test target, no test files are created and the report says so.
+When the tool has a test target (`Tests/<tool>Tests/`), the tool also creates the command's test files there, in folders that mirror the feature folder: tests for the inspection interpreter, performer, formatter, and workflow; for the collection interpreter and collector unless the command is passthrough; for the inspector when it stays in the feature folder; for the command itself when the project has a Core package; and `Shared/TestFactory+<Feature>.swift`. Each test file holds an empty test struct and its `makeSUT`, and helper example tests start disabled, so `swift test` passes before any test is written. The report lists them under `Tests to write:`. Without a test target, no test files are created and the report says so.
 
 ### 4b. Write the behavior notes
 
-What is left is what the behavior notes hold. First, conflicting flags in `validate()`, and anything the spec left out (a helper, prompter, or use case it did not create, an error message it did not give). Then replace each stub, following the stage order: the inspector's reads, the inspection interpreter's checks and derivations, the collector's asks for requirements without a prompter and any conditional skip, the collection interpreter's Context, the resolver's steps and each use case's method body, the formatter's message for each results case, and anything `makeWorkflow()` builds beyond the use cases. Write each helper body against its example tests. Without a spec, write the error cases, the Options flags and Input fields, the model fields, the models, and the resolver's Context and Results by hand first.
+What is left is what the behavior notes hold. First, conflicting flags in `validate()`, and anything the spec left out (a helper, prompter, or use case it did not create, an error message it did not give). Then replace each stub, following the stage order: the inspector's reads, the inspection interpreter's checks and derivations, the collector's asks for requirements without a prompter and any conditional skip, the collection interpreter's Brief, the performer's steps and each use case's method body, the formatter's message for each results case, and anything `makeWorkflow()` builds beyond the use cases. Write each helper body against its example tests. Without a spec, write the error cases, the Options flags and Input fields, the model fields, the models, and the performer's Brief and Results by hand first.
 
-Prompters, interpreter helpers, and use cases are never written by hand:
+Prompters, interpreter helpers, and use cases are never written by hand. `add-prompter`, `add-helper`, `add-use-case`, and `add-command` refuse a type name that uses a catch-all word from `nn-architecture` naming rule 6, and the error points to that rule.
 
 ```
 nnscaffold cli add-prompter <Value> --feature <Feature|<Group>/Shared|shared> --kind <input|single|multi> (--requirement <field> | --no-requirement) [--header]
-nnscaffold cli add-prompter <Value> --feature <Feature|<Group>/Shared|shared> --kind <input|single|multi> --stage resolve [--header]
+nnscaffold cli add-prompter <Value> --feature <Feature|<Group>/Shared|shared> --kind <input|single|multi> --stage perform [--header]
 nnscaffold cli add-helper <Name> --feature <Feature|<Group>/Shared|shared> --role <detector|validator|classifier|builder> --stage <inspection|collection|shared> [--param <name:Type>]... [--returns <Type>] [--throws] [--header]
 nnscaffold cli add-use-case --feature <Feature> --spec <file.json> [--preview] [--header]
 ```
 
-- **`add-prompter`** reads the `Value` and `Info` types from the requirement field. When the value is a `String`, `CaseIterable` enum, it fills in the options, the `displayName` switch, a `flagHint` naming the Options flag and its values, and the tests. Only the prompt text is left as a placeholder. It prints the `.ask` line to add to the collector. With `--stage resolve` it writes a follow-up prompter a use case asks (the Resolve stage rule) into `FollowUps/` instead, with plain `String` values and no requirement field; this works for a passthrough feature, and the use case gets it as a dependency built with `.init(picker: context.picker)`.
+- **`add-prompter`** reads the `Value` and `Info` types from the requirement field. When the value is a `String`, `CaseIterable` enum, it fills in the options, the `displayName` switch, a `flagHint` naming the Options flag and its values, and the tests. Only the prompt text is left as a placeholder. It prints the `.ask` line to add to the collector. With `--stage perform` it writes a follow-up prompter a use case asks (the Perform stage rule) into `FollowUps/` instead, with plain `String` values and no requirement field; this works for a passthrough feature, and the use case gets it as a dependency built with `.init(picker: context.picker)`.
 - **`add-helper`** writes `enum <Name><Role>` with a stub that compiles, and its test file. The stub's verb comes from the role (`detect`, `validate`, `classify`, or `make`), and its signature from the flags: each `--param name:Type` is a parameter (one `_ value: String` when there are none, and a single parameter has no label), `--returns` is the return type, and `--throws` makes it throw. A classifier or builder needs `--returns`; a detector without it returns its first parameter's type as an optional; a validator always throws. Pass the signature the plan decided, so the stub and its call site need no edit. `Foundation` is imported for `Date`, `URL`, `UUID`, or `Data`, and nothing else is imported; a type from a Kit needs its import added. A feature's helper goes in `Interpreters/Inspection`, `Interpreters/Collection`, or `Interpreters/Shared` by stage. A shared location with loose helpers takes no `--stage` other than `shared`; one split into stage folders takes any stage, and asks for it when `--stage` is omitted.
 
 - **`add-use-case`** adds the use cases in a spec file to one command; see **Adding a use case to an existing command** below.
 
 All three write the test file in the mirrored test folder.
 
-The inspector and resolver stubs are generated synchronous. When either awaits anything (an async read, an async use case), change its signature to `async throws` before writing the body. If the command needs a seam the factory does not vend yet (an async shell), add it in the five places listed in section 2 of `references/architecture.md` before writing the use case that takes it.
+The inspector and performer stubs are generated synchronous. When either awaits anything (an async read, an async use case), change its signature to `async throws` before writing the body. If the command needs a seam the factory does not vend yet (an async shell), add it in the five places listed in section 2 of `references/architecture.md` before writing the use case that takes it.
 
 An inspector planned for tracking takes two edits after generation, and the inspector itself doesn't change:
 
@@ -254,32 +253,33 @@ Read `references/flow-format.md`. Write the flow file from what was built, not f
 Check first whether another command already takes this flag with the same meaning. If one does, the flag belongs in a shared `<Concern>Options` (universal rule 9): add it there, or create the group and move the existing copy into it, then add the derived field to `<Concern>Settings` and read it where it is used. Otherwise, classify the flag by universal rule 14 in `SKILL.md`, then touch only the files its kind lists.
 
 - **Mode** (it changes which inspector runs or which set of questions the command has): stop. Plan a new command with steps 1 to 6, under a group with its sibling when they belong together.
-- **One-step value** (no interpreter asks for it; one step of the work uses it): `<Feature>Options`, with its `validate()` when the flag conflicts with another; `<Feature>Input`; the inspection interpreter's handoff into `<Feature>Findings`; the collection interpreter's handoff into the resolver's `Context`; and the resolver or use case that uses it. A passthrough command has no collection interpreter, and its Context is its Findings.
-- **Promptable value** (asked for when the flag is omitted): `<Feature>Options`; `<Feature>Input`; `<Feature>Requirements`, with its `Info` type; the inspection interpreter, which makes it `.known` from the input or `.unknown(Info)`; a prompter from `nnscaffold cli add-prompter` (step 4b); the collector's `.ask` line that `add-prompter` prints; the collection interpreter; the resolver's `Context`; and the resolver or use case that uses it. A passthrough command becomes collecting, which is a reshape.
+- **One-step value** (no interpreter asks for it; one step of the work uses it): `<Feature>Options`, with its `validate()` when the flag conflicts with another; `<Feature>Input`; the inspection interpreter's handoff into `<Feature>Findings`; the collection interpreter's handoff into the performer's `Brief`; and the performer or use case that uses it. A passthrough command has no collection interpreter, and its Brief is its Findings.
+- **Promptable value** (asked for when the flag is omitted): `<Feature>Options`; `<Feature>Input`; `<Feature>Requirements`, with its `Info` type; the inspection interpreter, which makes it `.known` from the input or `.unknown(Info)`; a prompter from `nnscaffold cli add-prompter` (step 4b); the collector's `.ask` line that `add-prompter` prints; the collection interpreter; the performer's `Brief`; and the performer or use case that uses it. A passthrough command becomes collecting, which is a reshape.
 
 A change that touches a file outside its kind's list is a reshape: plan it with steps 1 to 6. Then run step 5 against the feature folder, and update the command's flow file (step 6).
 
 ## Adding a use case to an existing command
 
-A use case the resolver needs after the command exists comes from `nnscaffold cli add-use-case`, never by hand.
+A use case the performer needs after the command exists comes from `nnscaffold cli add-use-case`, never by hand.
 
-1. Write a spec file that holds a `useCases` list, in the same shape as step 2b: `name` without the `UseCase` suffix, `property` as an agent noun, each dependency's `{ name, type, from }`, and the `method`'s signature. It may also hold `imports` and `knownTypes`. Any other section stops the run, because those belong to `add-command`. One file can list several use cases for the same command.
+1. Write a spec file that holds a `useCases` list, in the same shape as step 2b: `name` as the full type name, each dependency's `{ name, type, from }`, and the `method`'s signature. It may also hold `imports` and `knownTypes`. Any other section stops the run, because those belong to `add-command`. One file can list several use cases for the same command.
 2. Run it with `--preview` and show the list as the plan.
 3. Run it without `--preview`.
 
 Every use case is checked before anything is written. The run stops, writing nothing, when:
-- a name or property is invalid or repeated;
+- a name is invalid, repeated, ends in `UseCase`, or uses a catch-all word from `nn-architecture` naming rule 6;
 - a type is neither declared in the tool nor listed in `knownTypes`;
+- a factory product is named and `imports` is empty;
 - a new file name already exists anywhere in the target;
-- the resolver already has a property with a new use case's name.
+- the performer already has the property a new use case's name gives.
 
 Each use case and its test file go in the feature's `UseCases/` folder and its mirrored test folder. Then the run checks three things:
-- the resolver is still exactly what `nnscaffold` generates: `struct <Feature>CommandResolver { }`, or its generated properties and `init`;
-- `makeWorkflow()` has exactly one `resolver: .init(...)` line, whose labels are those properties in order;
-- the resolver tests' `makeSUT` is still the generated one.
+- the performer is still exactly what `nnscaffold` generates: `struct <Feature>Performer { }`, or its generated properties and `init`;
+- `makeWorkflow()` has exactly one `performer: .init(...)` line, whose labels are those properties in order;
+- the performer tests' `makeSUT` is still the generated one.
 
 When all three hold, the run adds every new property, `init` parameter, construction argument, and `makeSUT` parameter, plus `let context = <Root>.makeContext()` at the top of `makeWorkflow()` when a new dependency reads `context` and the command has no such line, and an `import` in the command file for each spec module it doesn't import yet when a new use case has dependencies. Otherwise it changes none of them and prints the lines to add, grouped by file. Whitespace counts, so even a reformatted line takes the print path.
 
 A new dependency is built once (universal rule 5) when its `name` and `from` match another new use case's or an argument already in `makeWorkflow()`. An existing `let <name> = <from>` is reused. An inline `<name>: <from>` argument becomes a `let` before `return .init(`, and every place that built it passes `<name>`. A `from` built under a different name, or a `let <name>` that holds a different expression, stays inline. On the print path, the `let` and the arguments to replace are printed first.
 
-Then write each use case's method body and call it from the resolver, run step 5 against the feature folder, and update the command's flow file (step 6).
+Then write each use case's method body and call it from the performer, run step 5 against the feature folder, and update the command's flow file (step 6).

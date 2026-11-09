@@ -38,7 +38,7 @@ Every leaf command has one; a group does not. The generated `FlowFilesTests` tes
 
 ## Code
 
-`<Feature>Options` → `<Inspector>` → `<Feature>InspectionInterpreter` → `<Feature>CommandCollector` → `<Feature>CollectionInterpreter` → `<Feature>CommandResolver` (`<UseCase>`, …) → `<Feature>ResultsFormatter`
+`<Feature>Options` → `<Inspector>` → `<Feature>InspectionInterpreter` → `<Feature>Collector` → `<Feature>CollectionInterpreter` → `<Feature>Performer` (`<Use case>`, …) → `<Feature>ResultsFormatter`
 ```
 
 ## Rules
@@ -49,7 +49,7 @@ Every leaf command has one; a group does not. The generated `FlowFilesTests` tes
 - **It stops** lists the blocks a user can cause, each with its reason or its fix in plain words. Don't quote the message, and don't list failures that only a broken project could cause: a missing or second `@main` root, a group file with no `subcommands: [` list or several, a file in an unexpected shape, a manifest the tool can't parse.
 - **Surprises** get at most two lines, after the stops: an order that matters (a typed answer checked only after every question), or something done beyond the obvious.
 - **Hard to explain may mean a bug.** If a step can't be explained plainly, or the code does something a user wouldn't expect, tell the user it may be a bug. Don't document around it, and don't change code to fix it while writing the flow file.
-- **Type names appear only in the Code line**: the stage types in pipeline order, with the resolver's use cases in parentheses. Leave out a stage the command doesn't have (`<Feature>Options` without a `validate()`, the collector and collection interpreter for a passthrough command). A shared inspector keeps its own name, so the line can start with `CommandLineToolInspector` rather than a `<Feature>Inspector`.
+- **Type names appear only in the Code line**: the stage types in pipeline order, with the performer's use cases in parentheses. Leave out a stage the command doesn't have (`<Feature>Options` without a `validate()`, the collector and collection interpreter for a passthrough command). A shared inspector keeps its own name, so the line can start with `CommandLineToolInspector` rather than a `<Feature>Inspector`.
 - **No cross-references between steps,** no tables beyond the questions table, no planning notes, no test lists.
 - **Aim for 25 to 50 lines.** A longer file usually lists detail the reader doesn't need.
 - **No em dashes.** Use a colon, a comma, or parentheses.
@@ -60,10 +60,10 @@ Read the code before writing, so every line is true:
 
 | Section | Read |
 | --- | --- |
-| Summary, What happens | the command's `configuration`, the inspector, the resolver and its use cases, and the formatter |
+| Summary, What happens | the command's `configuration`, the inspector, the performer and its use cases, and the formatter |
 | Skipping the questions | the collector, each prompter's `flagHint` and skip conditions, and `<Feature>Options` |
 | It stops | `<Feature>Options.validate()`, the inspection interpreter, `<Feature>Error`, and the collection interpreter |
-| Code | the feature folder's stage types and the resolver's use cases |
+| Code | the feature folder's stage types and the performer's use cases |
 
 ## Example
 
@@ -102,7 +102,7 @@ A version typed at the prompt is checked only after you enter it, and isn't aske
 
 ## Code
 
-`TagReleaseInspector` → `TagReleaseInspectionInterpreter` → `TagReleaseCommandCollector` → `TagReleaseCollectionInterpreter` → `TagReleaseCommandResolver` (`CreateTagUseCase`) → `TagReleaseResultsFormatter`
+`TagReleaseInspector` → `TagReleaseInspectionInterpreter` → `TagReleaseCollector` → `TagReleaseCollectionInterpreter` → `TagReleasePerformer` (`TagCreator`) → `TagReleaseResultsFormatter`
 ```
 
 ## Adding flow files to an existing tool

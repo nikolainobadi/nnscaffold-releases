@@ -19,6 +19,85 @@ An entry that relaxes a rule says so under **Changed**; its **Behind when** name
 
 ## [Unreleased]
 
+## [0.12.0]
+
+### A spec that names a factory type needs imports
+
+- **Changed**: `add-command` and `add-use-case` now stop when a spec names `Shell`, `FileSystem`, `Directory`, `CommandLinePicker`, or `ProgressDisplay` and its `imports` is empty. Before, the spec passed and the generated files didn't compile.
+- **Rules**: `Workflows/add-command.md`, the type rule in step 2b and **Adding a use case to an existing command**.
+- **Generated output**: none. `cli add-command --spec` and `cli add-use-case` refuse the spec before writing.
+- **Behind when**: nothing to change in the tool. A saved spec with no `imports` that names one of these types stops until the modules are listed.
+
+### Several rules relaxed to match how tools are built
+
+- **Changed**: relaxes these rules. `<Feature>Collector.swift` may sit beside `Prompters/`, the `isX` ban covers only stored Bool properties, a module builds its own stateless collaborators, a Detector may read the outside world, and an Options type keeps `validate()` in its body. Also adds Resolver and the collective word Helper to the glossary, and says a shared helper's error lives in the closest `Shared/Workflow/`.
+- **Rules**: `SKILL.md` Don't list items 33 and 36; `references/architecture.md` sections 6 and 7; `references/style.md`, Type body and Naming; `references/glossary.md`; the `nn-architecture` skill, Dependencies between modules.
+- **Generated output**: none.
+- **Behind when**: nothing to change.
+
+### Pipeline stages use Inspector, Collector, Performer, and Brief
+
+- **Changed**: the last stage is now the Perform stage. `<Feature>CommandResolver` is `<Feature>Performer`, `resolve(context:)` is `perform(brief:)`, the nested `Context` is `Brief`, and `<Feature>CommandCollector` is `<Feature>Collector`. The protocols and mocks follow NnArgumentParser: `NnInspector`, `NnCollector`, `NnPerformer`, `MockInspector`, `MockCollector`, `MockPerformer`, and `capturedBriefs`. This is a breaking change that needs NnArgumentParser 2.0.0.
+- **Rules**: `SKILL.md` stage rules; `references/architecture.md` sections 3, 4, 7, and 8; `references/glossary.md`; `references/style.md`, Naming.
+- **Generated output**: `cli add-command` writes the new names, with the performer in `Performer/`. `add-use-case` wires into the performer. `add-command --inspector` only finds inspectors that conform to `NnInspector`, so a tool still on `NnCommandInspector` has no reusable inspectors until it is renamed. `cli init` writes `from: "2.0.0"` for NnArgumentParser in `<tool>/Package.swift`. It wrote `1.3.0` before.
+- **Behind when**: the tool's `Package.swift` asks for NnArgumentParser below 2.0.0, or the tool has `NnCommandResolver`, `NnCommandInspector`, `NnCommandCollector`, `CommandResolver`, `CommandCollector`, `resolve(context:)`, a `Resolver/` folder, or, in its tests, `MockCommandResolver`, `MockCommandInspector`, `MockCommandCollector`, or `capturedContexts`.
+
+### Use cases are agent nouns, and the spec names them in full
+
+- **Changed**: a use case is now named as an agent noun with no suffix (`TagCreator`), in `UseCases/TagCreator.swift`. In a spec, `name` is the full type name, the `property` key is gone, and the `context` key is now `brief`. The property is the type name with its whole leading acronym lowercased (`URLFetcher` gives `urlFetcher`). Before, `name` left off a `UseCase` suffix the tool added, and `property` was written by hand.
+- **Rules**: `SKILL.md`, the Perform stage rule and Don't list item 29; `references/style.md`, Naming; `Workflows/add-command.md` step 2b and **Adding a use case to an existing command**.
+- **Generated output**: `cli add-command --spec` and `cli add-use-case` read the new spec format, refuse a `name` ending in `UseCase`, and write `UseCases/<Name>.swift`.
+- **Behind when**: a type or file under `UseCases/` ends in `UseCase`, or a performer holds a use case under a property that isn't its type name in lower camel case. A saved spec with a `property` or `context` key stops with an unknown-key error.
+
+### Follow-up prompters use `--stage perform`
+
+- **Changed**: `cli add-prompter --stage resolve` is now `--stage perform`. Where the prompter goes hasn't changed.
+- **Rules**: `SKILL.md`, the Perform stage rule; `references/architecture.md` section 7.
+- **Generated output**: `cli add-prompter` takes `--stage collect|perform`.
+- **Behind when**: a script or document in the tool passes `--stage resolve`.
+
+### Tools get architecture rules tests
+
+- **Changed**: a generated test file now fails when a tool breaks Don't list items 1, 10 (`print` only), 34, 37, 38, 42, or 43, naming the file and the rule. Before, those items were only checked by review.
+- **Rules**: `references/architecture.md` section 8; the items marked Checked in the `SKILL.md` Don't list.
+- **Generated output**: `cli init` writes `Tests/<tool>Tests/Main/ArchitectureRulesTests.swift`. The new `cli add-architecture-tests` adds it to an existing tool and replaces it when the rules change.
+- **Behind when**: `Tests/<tool>Tests/Main/ArchitectureRulesTests.swift` is missing, or `nnscaffold cli add-architecture-tests --preview` shows it would change.
+
+### Scaffolded type names refuse catch-all words
+
+- **Changed**: `add-use-case`, `add-command`, `add-helper`, and `add-prompter` now stop on a type name that uses Manager, Helper, Handler, Processor, Service, Util, or Utility, and the error points to `nn-architecture` naming rule 6.
+- **Rules**: `nn-architecture`, Choosing a name, rule 6; `SKILL.md` Don't list item 46.
+- **Generated output**: those four commands refuse the name before writing anything.
+- **Behind when**: a type the tool named itself uses one of those words. Glossary terms are exempt.
+
+### The performer coordinates, and shared principles live in `nn-architecture`
+
+- **Changed**: the performer is the coordinator, and a coordinating use case exists only when two commands share the sequence or the sequence runs concurrently. `makeWorkflow()` also builds the use cases one use case gives to another. Performers and use cases are now a fourth kind of test, and a failure after the first change follows **Say where things stand** in `nn-architecture`.
+- **Rules**: `SKILL.md`, universal rule 5, the Perform stage rule, and the routing row for `nn-architecture`; `references/architecture.md` sections 6 and 8; the `nn-architecture` skill.
+- **Generated output**: none.
+- **Behind when**: a use case that only calls other use cases in order, used by one command and not concurrent; a use case that builds another use case; or an error thrown after the first change that doesn't say what was done, what wasn't, and what to do next.
+
+### The Don't lists are marked by how each item is enforced
+
+- **Changed**: each item in the `nn-cli-architecture` and `nn-mcp-architecture` Don't lists is marked Generated, Checked, or Judgment, and `Workflows/review-cli.md` step 4 follows the marks.
+- **Rules**: the Don't list in each `SKILL.md`; `Workflows/review-cli.md` step 4.
+- **Generated output**: none.
+- **Behind when**: nothing to change.
+
+### Generated packages treat warnings as errors
+
+- **Changed**: both packages `cli init` creates now end with a `for target in package.targets` loop that adds `.treatAllWarnings(as: .error)` to every target. Before, warnings didn't fail the build.
+- **Rules**: none.
+- **Generated output**: `cli init` adds the loop to `<App>Core/Package.swift` and `<tool>/Package.swift`.
+- **Behind when**: either `Package.swift` has no `treatAllWarnings(as: .error)`.
+
+### Core Testing libraries re-export their Kit
+
+- **Changed**: `<App>FileTesting` and `<App>ShellTesting` now depend on `<App>FileKit` or `<App>ShellKit` and re-export it next to NnFileTesting or NnShellTesting, so a test importing a Testing library also sees its Kit. Before, they depended on and re-exported only the Nn testing module.
+- **Rules**: none.
+- **Generated output**: `cli init` adds the Kit target to each Testing library's dependencies in `<App>Core/Package.swift` and an `@_exported import <App>FileKit` or `<App>ShellKit` line to its `Exports.swift`.
+- **Behind when**: `<App>Core/Sources/<App>FileTesting/Exports.swift` or `<App>ShellTesting/Exports.swift` doesn't import its Kit.
+
 ## [0.11.2] - 2026-11-07
 
 ### Follow-up prompters live in `FollowUps/`
