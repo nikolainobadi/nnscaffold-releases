@@ -107,7 +107,7 @@ A coordinator reads as one line per action at a single level, so the sequence is
 
 ### Dependencies between modules
 
-A module may depend on another when it needs that module's answer to finish its own job. A module never calls another just because it comes next: that order belongs to the coordinator. Dependencies run one way, with no cycles. A module receives any collaborator that holds state or fronts something outside the program rather than building it. It may build a stateless collaborator that does neither.
+A module may depend on another when it needs that module's answer to finish its own job. A module never calls another just because it comes next: that order belongs to the coordinator. Dependencies run one way, with no cycles. A module receives any collaborator that holds state or fronts something outside the program rather than building it. It may build a collaborator that does neither. It may also build one from collaborators it was given plus values that exist only once its work starts (a request, a brief), when that collaborator is not a role (Noun kinds), holds no mutable state, and reaches the outside world only through the collaborators it was given.
 
 ### Testing
 
@@ -148,4 +148,4 @@ A step that must never be left half done is made atomic, such as writing to a te
 
 ## Exceptions
 
-A rule can be wrong or incomplete. When following one seems wrong, stop and ask before departing from it. Name the rule, say why it doesn't fit this case, show what was tried within the rule, and propose the alternative. Matching existing code is not a reason on its own. An exception approved more than once is a sign the rule itself should change.
+A rule can be wrong or incomplete. When following one seems wrong, stop and ask before departing from it. Name the rule, say why it doesn't fit this case, show what was tried within the rule, and propose the alternative. Matching existing code is not a reason on its own. An exception approved more than once is a sign the rule itself should change. An approved exception is recorded in the project, where its architecture skill says, so later reviews know it was deliberate.

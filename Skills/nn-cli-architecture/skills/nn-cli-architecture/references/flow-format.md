@@ -6,7 +6,7 @@ Every leaf command has one; a group does not. The generated `FlowFilesTests` tes
 
 ## Location
 
-`<tool>/Flows/<command path>.md`, at the package root beside `Sources/` and `Tests/`, never inside `Sources/` (SwiftPM warns about unhandled files there). The path mirrors how the command is typed, without the tool name: `add-target` is `Flows/add-target.md`, and `cli add-command` is `Flows/cli/add-command.md`. A group is a folder, never a file.
+`<tool>/Flows/<command path>.md`, at the package root beside `Sources/` and `Tests/`, never inside `Sources/` (SwiftPM warns about unhandled files there). The path mirrors how the command is typed, without the tool name: `package add-target` is `Flows/package/add-target.md`, and `cli add-command` is `Flows/cli/add-command.md`. A group is a folder, never a file.
 
 ## Template
 

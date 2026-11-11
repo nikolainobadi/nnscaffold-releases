@@ -1,6 +1,6 @@
 {
   "name": "nn-architecture",
   "description": "Universal architecture principles shared by the nn architecture skills: how types are classified and named, independent of any kind of project.",
-  "version": "0.12.1",
+  "version": "0.13.0",
   "author": { "name": "Nikolai Nobadi" }
 }

@@ -19,6 +19,29 @@ An entry that relaxes a rule says so under **Changed**; its **Behind when** name
 
 ## [Unreleased]
 
+## [0.13.0]
+
+### Tools record approved architecture exceptions
+
+- **Changed**: a tool may keep `.nn-cli-architecture-exceptions.md` listing exceptions the user approved. `review-cli` and `catch-up` report a finding an entry covers under Accepted exceptions instead of as a violation, and flag entries whose type is gone or whose rule changed since approval. Before, every departure was reported as a violation on every run.
+- **Rules**: `references/exceptions.md`; `SKILL.md` intro and Routing; `Workflows/review-cli.md` steps 2, 4, and 5 and Constraints; `Workflows/catch-up.md` steps 1, 3, and 4 and Constraints; the `nn-architecture` skill, Exceptions.
+- **Generated output**: none.
+- **Behind when**: nothing to change.
+
+### A stage or use case may build a collaborator bound to its brief or request
+
+- **Changed**: relaxes universal rules 5 and 6. A stage or use case may build a collaborator from collaborators `makeWorkflow()` injected plus the brief or a request, when it is neither a store nor a client, holds no mutable state, and reaches the outside world only through what it was given. Before, every such object had to come from `makeWorkflow()`, and a stage could build only helpers that need nothing beyond a primitive.
+- **Rules**: `SKILL.md` universal rules 5 and 6 and Don't list item 8; the `nn-architecture` skill, Dependencies between modules.
+- **Generated output**: none.
+- **Behind when**: nothing to change.
+
+### Confirmations take a single keypress
+
+- **Changed**: `DefaultContextFactory.makePicker()` now builds the interactive picker with `permissionSubmitMode: .immediate`, `SwiftPicker(interruptBehavior: .waitForTermination, assumeYes:, permissionSubmitMode: .immediate)`, so a confirmation in a terminal accepts the first `y` or `n` keypress without Enter. Before, every answer needed Enter. Piped input and `--yes` behave as before.
+- **Rules**: `SKILL.md` universal rule 3; `references/architecture.md`, the `DefaultContextFactory` row.
+- **Generated output**: `cli init` generates `Main/DefaultContextFactory.swift` with `permissionSubmitMode: .immediate`, and the tool's `Package.swift` requires SwiftPickerKit 0.15.0.
+- **Behind when**: `makePicker()` in `DefaultContextFactory.swift` builds `SwiftPicker` without `permissionSubmitMode:`, or the tool's `Package.swift` requires SwiftPickerKit below 0.15.0.
+
 ## [0.12.1]
 
 ### Don't item 14 flags the mode flag, not every multi-stage flag

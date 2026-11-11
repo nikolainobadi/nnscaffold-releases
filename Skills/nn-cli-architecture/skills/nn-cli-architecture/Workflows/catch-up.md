@@ -1,6 +1,6 @@
 # Workflow: Catch Up a CLI
 
-Use when the request is to bring an existing tool up to date with changes to this architecture or to what `nnscaffold` generates, or to list what in a tool needs refactoring after those changes. This workflow reports only: it produces a refactor list scoped to the changes the tool has not applied, and edits nothing but the marker file, and that only when the user says to.
+Use when the request is to bring an existing tool up to date with changes to this architecture or to what `nnscaffold` generates, or to list what in a tool needs refactoring after those changes. This workflow reports only: it produces a refactor list scoped to the changes the tool has not applied, and edits nothing but the marker file and the tool's exceptions file, each only when the user says to.
 
 A general review against the whole architecture, with no mention of recent changes, belongs to [review-cli.md](review-cli.md) instead.
 
@@ -8,7 +8,7 @@ A general review against the whole architecture, with no mention of recent chang
 
 The tool is the package folder whose `Package.swift` has an executable target depending on NnArgumentParser. If the working directory holds more than one, ask which one. The marker is `<tool>/.nn-cli-architecture`, a one-line file holding the version of this skill the tool was last brought up to, such as `0.7.1`.
 
-The skill's own version is the `version` in `../../.claude-plugin/plugin.json`, resolved from the directory containing `SKILL.md`. Read `references/changelog.md` completely. Its version sections are newest first; compare versions by semantic version precedence, not as strings.
+The skill's own version is the `version` in `../../.claude-plugin/plugin.json`, resolved from the directory containing `SKILL.md`. Read `references/changelog.md` completely. Its version sections are newest first; compare versions by semantic version precedence, not as strings. Read `references/exceptions.md` completely, and the tool's exceptions file if it has one.
 
 - **No marker**: the tool predates the changelog. Follow [review-cli.md](review-cli.md) completely with the whole tool as its scope, then continue at step 5.
 - **Marker is a version**: the pending entries are those under `## [Unreleased]` and under every version section newer than the marker. If there are none, say the tool is up to date with `<marker>` and stop. Otherwise continue at step 2.
@@ -22,13 +22,15 @@ When an entry's **Generated output** names an `nnscaffold` command, the code to 
 
 ## 3. Find the affected code
 
-For each pending entry, search the tool for what its **Behind when** line describes. Read each match far enough to decide its role (step 3 of [review-cli.md](review-cli.md)) and whether it actually breaks the current rule. A search hit alone is not a finding.
+For each pending entry, search the tool for what its **Behind when** line describes. Read each match far enough to decide its role (step 3 of [review-cli.md](review-cli.md)) and whether it actually breaks the current rule. A search hit alone is not a finding. Match each finding against the tool's exceptions file, and check every entry in it for staleness, as `references/exceptions.md` describes.
 
 Tests are in scope only when the request names them, as in a review.
 
 ## 4. Report
 
 Group the report by pending entry, oldest first, under each entry's version and title. List its findings in the entry format of [review-cli.md](review-cli.md) step 5 (**Where**, **Rule**, **What**, **Fix**), with its grouping of repeats. An entry with no affected code gets one line saying so. An entry whose **Behind when** cannot be decided from the code says what is undecidable and why.
+
+After the pending entries, add the **Accepted exceptions** and **Stale exceptions** sections as [review-cli.md](review-cli.md) step 5 describes.
 
 End with one line naming the version the marker will hold once the list is done: `Marker: <old or none> → <skill version>`.
 
@@ -38,7 +40,7 @@ Write the skill's version to `<tool>/.nn-cli-architecture` only when the user sa
 
 ## Constraints
 
-- Do not edit any file except the marker, and that only under step 5.
+- Do not edit any file except the marker, and that only under step 5, and the tool's exceptions file, and that only when the user approves an entry (**Adding an entry** in `references/exceptions.md`).
 - Do not write Swift code, including "what it should look like" snippets.
 - Do not report violations unrelated to a pending entry. A tool with no marker is the exception: its catch-up is a full review.
 - Do not invent changelog history. If the user describes a change the changelog does not have, say the entry is missing and that it belongs under `## [Unreleased]` in `references/changelog.md`.
