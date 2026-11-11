@@ -9,7 +9,7 @@ The Structural terms of this architecture. Each means only what it says here, an
 | Workflow | `<Feature>Workflow` | The five stages of one command, with no behavior of its own |
 | Inspector | `<Feature>Inspector` | Gathers facts and changes nothing the user owns |
 | Facts | `<Feature>Inspector.Facts` | What the inspector found |
-| Interpreter | `<Feature>InspectionInterpreter`, `<Feature>CollectionInterpreter` | Reads what's known and decides what it means. All decisions live here |
+| Interpreter | `<Feature>InspectionInterpreter`, `<Feature>CollectionInterpreter` | Reads what's known and decides what the command does |
 | Findings | `<Feature>Findings` | What inspection settled |
 | Requirements | `<Feature>Requirements` | One entry per input, known or still needed |
 | Collector | `<Feature>Collector` | Asks for what's still unknown, and only sequences prompters |

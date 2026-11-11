@@ -19,6 +19,29 @@ An entry that relaxes a rule says so under **Changed**; its **Behind when** name
 
 ## [Unreleased]
 
+## [0.12.1]
+
+### Don't item 14 flags the mode flag, not every multi-stage flag
+
+- **Changed**: Don't list item 14 now flags a mode kept as a flag (one that changes which inspector runs or which questions are asked), however many stages read it; switching on it in several stages is the usual sign. A value flag such as `--force` may be read by every stage its one step touches. Before, it flagged any enum or Bool switched on in more than one stage, which included value flags universal rule 14 allows, and missed a mode flag read in one place. Relaxes the item for value flags.
+- **Rules**: `SKILL.md` Don't list item 14.
+- **Generated output**: none.
+- **Behind when**: a flag that swaps the inspector or the set of questions, even when only `makeWorkflow()` or one stage reads it.
+
+### A failure partway through perform says where things stand
+
+- **Changed**: the Perform stage rule now says that when a step fails after an earlier step changed something, the performer or coordinating use case catches the error and throws a `<Feature>Error` case naming what failed (the underlying message as a `String`), what finished, what didn't, and what to run next. A use case in the executable throws `<Feature>Error` cases (a shared one, the error in its closest `Shared/Workflow/`); only a library use case has its own error type. Flow files leave these failures out of the stops section. Before, the rule didn't say who reports such a failure or how.
+- **Rules**: `SKILL.md`, the Perform stage rule and Don't list item 48; `references/flow-format.md`, Rules; `references/architecture.md` section 6 already points to **Say where things stand** in `nn-architecture`.
+- **Generated output**: none.
+- **Behind when**: a performer or coordinating use case with two or more steps that change something, where a later step's error propagates uncaught (no `catch` that throws a `<Feature>Error` case naming the finished steps), or a flow file that lists such a failure under its stops.
+
+### Model rules stay on the model, and shared state changes atomically
+
+- **Changed**: interpreters make the command's decisions, and a rule about a model's own data lives on the model. Before, the stage rules and glossary said every decision lives in the interpreters. Adds the shared state rule: state another process may write between inspect and perform is changed through one atomic store update (read, apply the model's rule, write, under a lock), the rule returns the outcome for the performer to report, and the inspector's snapshot of it is for preconditions and the report only. Before, the skill had no rule for such state.
+- **Rules**: `SKILL.md`, the stage rules opening, the shared state rule, and Don't list item 47; `references/glossary.md`, the Interpreter row.
+- **Generated output**: none.
+- **Behind when**: a store whose file another process also writes (a lock, queue, or shared state file) that is read and then written as separate steps (in the inspector and performer, or `load()` then `save()` in a use case), with no atomic `update(_:)` on the store.
+
 ## [0.12.0]
 
 ### A spec that names a factory type needs imports

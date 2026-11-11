@@ -44,7 +44,7 @@ Picker, shell, file-system, and progress-display APIs belong to the SwiftPickerK
 
 ## Stage rules
 
-The pipeline is inspect → interpret → collect → interpret → perform. Decisions belong to the two interpreters and nowhere else.
+The pipeline is inspect → interpret → collect → interpret → perform. The command's decisions belong to the two interpreters and nowhere else. A rule about a model's own data lives on the model (nn-architecture, Noun kinds), and an interpreter, a use case, or the store's atomic update calls it.
 
 **Inspect** (`<Feature>Inspector`). Gathers facts: tools present, files present, repository state. A missing thing is `nil`, not an error. When the reason it is missing tells the user what to fix (git failed, rather than "not a repository"), the inspector may record it beside the fact as `<fact>Failure: String?` instead of folding it into `nil` with `try?`; the inspection interpreter decides whether that reason blocks. Throws only when an operation itself fails. Changes nothing the user owns: no writing files, no moving branches, no pushing, no prompting. Reads are allowed, local or over the network, and so is refreshing remote-tracking refs and tags (`git fetch`), since that is a cache refresh. An unreachable source is a fact (`nil` or `false`), not a throw; the inspection interpreter decides whether it blocks. `inspect()` may be `async` when a read is. An inspector never takes the progress display, because it may live in a library target that can't depend on CLI code. When its reads are slow enough that the command would look stalled, `makeWorkflow()` wraps it in `NnTrackedInspector` (section 2 of `references/architecture.md`).
 
@@ -54,7 +54,9 @@ The pipeline is inspect → interpret → collect → interpret → perform. Dec
 
 **Collection interpreter** (`<Feature>CollectionInterpreter`). Resolves each requirement with its answer through `resolve(answer:)`, validates typed answers (throwing `<Feature>Error` on bad input), and builds the `Brief` with everything the performer needs.
 
-**Perform** (`<Feature>Performer`). Does the work through use cases, or a store, injected in `init`. A store is injected directly only when the work is one read or write with no logic around it; once there is a sequence of steps, a second dependency, or progress to report, it becomes a use case. The performer is the coordinator. A coordinating use case exists only when two commands share the sequence or the sequence runs concurrently. A use case is an agent noun (`ReleasePublisher`), and the property holding it is the type name with its whole leading acronym lowercased. May prompt only for follow-ups that arise from work already done, such as confirming a suggestion the work produced or a final confirmation. Never prompts for an input the command needed before it started. Such a prompt runs inside the progress display's `suspended { }`. The follow-up is asked through a `<Value>Prompter` from `nnscaffold cli add-prompter --stage perform`, held by the use case that asks it, and lives in `<Feature>/FollowUps/`. `perform(brief:)` is `async` when a use case it awaits is; concurrent work (a task group) lives inside that use case, not in the performer. Returns `Results`, usually an enum, and writes nothing.
+**Perform** (`<Feature>Performer`). Does the work through use cases, or a store, injected in `init`. A store is injected directly only when the work is one read or write with no logic around it; once there is a sequence of steps, a second dependency, or progress to report, it becomes a use case. The performer is the coordinator. A coordinating use case exists only when two commands share the sequence or the sequence runs concurrently. A use case is an agent noun (`ReleasePublisher`), and the property holding it is the type name with its whole leading acronym lowercased. May prompt only for follow-ups that arise from work already done, such as confirming a suggestion the work produced or a final confirmation. Never prompts for an input the command needed before it started. Such a prompt runs inside the progress display's `suspended { }`. The follow-up is asked through a `<Value>Prompter` from `nnscaffold cli add-prompter --stage perform`, held by the use case that asks it, and lives in `<Feature>/FollowUps/`. `perform(brief:)` is `async` when a use case it awaits is; concurrent work (a task group) lives inside that use case, not in the performer. Returns `Results`, usually an enum, and writes nothing. When a step fails after an earlier step changed something, whichever runs the steps (the performer, or a coordinating use case) catches the error and throws a `<Feature>Error` case that says what failed, what finished, what didn't, and what to run next (nn-architecture, Say where things stand). The case carries the underlying error's message as a `String`, since `<Feature>Error` is `Equatable`. A use case in the executable throws `<Feature>Error` cases for its own failures, and a shared one throws the error in the `Workflow/` of the closest `Shared/` that holds every feature using it, as a shared helper does; only a use case in a library target, where `<Feature>Error` isn't visible, has its own error type.
+
+**Shared state** (state another process may write between inspect and perform) is changed in one step. The interpreter decides what the command does (join the line, release a session). The performer or use case passes that to the store's atomic update, such as `update(_:)` under a file lock, which reads the current state, applies the model's rule, and writes it back. Its shape is `func update<Outcome>(_ change: (inout State) throws -> Outcome) throws -> Outcome`. The model's rule returns the outcome, because another process may have changed the state since the interpreters ran (another session took the lock first). The performer reports that outcome: a `Results` case when it is a normal result (queued behind another session), a thrown `<Feature>Error` only when it stops the command. The inspector's snapshot of that state is for preconditions and the report only, never for the new value. One atomic `update(_:)` counts as the one read or write that lets a store be injected directly into a performer.
 
 ## Routing
 
@@ -100,7 +102,7 @@ Each item is marked with how it's enforced. **Generated:** `nnscaffold` produces
 11. A `<Feature>Workflow` with behavior beyond its five `let`s. [Generated]
 12. Conflicting flags not rejected in `validate()`, an `Input` holding ArgumentParser types, or Options and Input on a command with no flags; the same flag with the same meaning declared in two commands' Options instead of a shared `<Concern>Options`, or a shared settings value split back into separate Findings or Brief fields. [Judgment]
 13. An empty `abstract` [Generated], or prompts with no flag equivalent and no mention of it in `discussion` [Judgment].
-14. A mode enum or Bool switched on in more than one stage, or checked again in `makeWorkflow()`. [Judgment]
+14. A mode kept as a flag instead of a separate command (universal rule 14): an enum or Bool that changes which inspector runs or which questions are asked. Switching on it in more than one stage, or in `makeWorkflow()`, is the usual sign. A value flag that changes one step, such as `--force`, may be read by every stage that step touches. [Judgment]
 
 **Inspect** (the Inspect stage rule)
 
@@ -157,6 +159,14 @@ Each item is marked with how it's enforced. **Generated:** `nnscaffold` produces
 **Names** (`nn-architecture`, Choosing a name, rule 6)
 
 46. A type a project named with a catch-all word (Manager, Helper, Handler, Processor, Service, Util, or Utility) [Generated].
+
+**Shared state** (the shared state rule)
+
+47. A read and write of state other processes write, done as separate steps instead of one atomic store update. [Judgment]
+
+**Partial failure** (the Perform stage rule)
+
+48. A step that fails after an earlier step changed something, with its error passed through instead of rethrown as a `<Feature>Error` case naming what failed, what finished, and what to run next. [Judgment]
 
 ## Completion
 

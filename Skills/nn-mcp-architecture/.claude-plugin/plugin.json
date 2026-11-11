@@ -1,7 +1,7 @@
 {
   "name": "nn-mcp-architecture",
   "description": "Architecture reference for Swift MCP servers built on MCPServerKit: the entry point and startup rules, the feature and capability layout, the protocol and backend behind each tool handler, tool error translation, per-tool annotations, and workflows for creating a server and adding capabilities.",
-  "version": "0.12.0",
+  "version": "0.12.1",
   "author": { "name": "Nikolai Nobadi" },
   "dependencies": ["nn-architecture"]
 }
