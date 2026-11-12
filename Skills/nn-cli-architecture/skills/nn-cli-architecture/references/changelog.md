@@ -19,6 +19,15 @@ An entry that relaxes a rule says so under **Changed**; its **Behind when** name
 
 ## [Unreleased]
 
+## [0.13.1]
+
+### Store locks use NnFileKit's withExclusiveLock
+
+- **Changed**: the generated Core package requires NnFileKit 0.10.0, and the shared state rule takes a store's file lock through `FileSystem.withExclusiveLock(at:_:)`, with the read, the model's rule, and the write inside its closure. Before, the package required 0.9.2 and the rule said "under a file lock" without naming how.
+- **Rules**: `SKILL.md`, Shared state.
+- **Generated output**: `cli init` requires NnFileKit 0.10.0 in the Core package's `Package.swift`.
+- **Behind when**: the Core package's `Package.swift` requires NnFileKit below 0.10.0, or a store takes its lock with its own `flock` or `open` code instead of `withExclusiveLock`. A test that expects `NSError` code 3 from `MockDirectory.readFile(named:)` for a missing file, or a `CocoaError` from `DefaultFileSystem.readFile(at:)`, now expects `FileSystemError.fileNotFound`.
+
 ## [0.13.0]
 
 ### Tools record approved architecture exceptions
