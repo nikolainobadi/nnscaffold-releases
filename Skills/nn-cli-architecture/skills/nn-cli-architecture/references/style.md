@@ -71,3 +71,7 @@ The terms in this table are defined in [glossary.md](glossary.md). A name a proj
 - Default parameter values follow universal rule 10 in `SKILL.md`. Test targets and `*Testing` targets may default parameters.
 - Payload and model types are `Sendable` structs or enums; `Equatable` when compared in tests or logic; `Codable` when persisted.
 - A `public` model declares an explicit `public init` listing every field; the synthesized initializer is internal and would deny construction across packages.
+
+## Imports
+
+- A test file imports the testing package, never the production package it re-exports: `CodeLaunchFileTesting`, not `CodeLaunchFileKit`; `ConsoleProgressTesting`, not `ConsoleProgressKit`. When the tool has its own testing package wrapping a shared one, the tool's wins: `CodeLaunchShellTesting`, not `NnShellKit`. Importing a shared testing package such as `NnShellTesting` is fine. A production package without a testing version, such as a tool's own registry kit, is imported directly.

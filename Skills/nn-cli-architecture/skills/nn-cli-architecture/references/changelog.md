@@ -19,6 +19,15 @@ An entry that relaxes a rule says so under **Changed**; its **Behind when** name
 
 ## [Unreleased]
 
+## [0.15.0]
+
+### Test files import testing packages
+
+- **Changed**: `ArchitectureRulesTests` fails when a test file imports a production package that a testing package re-exports, and generated test files import the testing package instead of copying the spec's `imports`. Before, generated test files got the spec's production imports, and nothing caught them.
+- **Rules**: `SKILL.md` Don't list item 49; `references/style.md`, Imports; `references/architecture.md` section 8.
+- **Generated output**: `cli add-architecture-tests` (a new test and helpers in `ArchitectureRulesTests.swift`); `cli add-command` (the test factory, stage tests, prompter tests, use case tests, and helper tests); `cli add-prompter`; `cli add-use-case`; `cli add-helper` (helper tests).
+- **Behind when**: a file under `Tests/<tool>Tests/` imports a module that has a testing version, such as `import CodeLaunchFileKit` or `import ConsoleProgressKit`. After `nnscaffold cli add-architecture-tests`, `swift test` lists each one.
+
 ## [0.14.0]
 
 ### cli init writes the architecture marker

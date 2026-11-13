@@ -1,7 +1,7 @@
 {
   "name": "nn-cli-architecture",
   "description": "Architecture reference for Swift command-line tools built on NnArgumentParser: root command and factory, the NnWorkflow inspect/collect/resolve pipeline, folder layout, file style, and workflows for a new CLI, for adding a command, for reviewing an existing tool, and for catching a tool up after architecture changes.",
-  "version": "0.14.0",
+  "version": "0.15.0",
   "author": { "name": "Nikolai Nobadi" },
   "dependencies": ["nn-architecture"]
 }

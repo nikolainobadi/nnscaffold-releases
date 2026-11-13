@@ -169,6 +169,10 @@ Each item is marked with how it's enforced. **Generated:** `nnscaffold` produces
 
 48. A step that fails after an earlier step changed something, with its error passed through instead of rethrown as a `<Feature>Error` case naming what failed, what finished, and what to run next. [Judgment]
 
+**Tests** (`references/style.md`, Imports)
+
+49. A test file that imports a production package a testing package re-exports (`<App>FileKit` when `<App>FileTesting` exists, `ConsoleProgressKit` when `ConsoleProgressTesting` exists), instead of importing the testing package and adding it to the test target's dependencies when it is missing. [Checked]
+
 ## Completion
 
 A new project is done when the package builds, `Main/` holds the root, factory, context, and `ProgressAwareOutputWriter`, and the first command follows the add-command workflow. An added command is done when every file in its file table exists in the feature folder, every stage type conforms, `makeWorkflow()` (or its group's `<Group>Assembly`) builds every store, use case, client, and shared dependency, the subcommand is registered on its parent, the package builds, the Don't list passes, and its flow file in `Flows/` describes what was built (add-command step 6). Write tests only when the request includes them. Report the files created or changed.
