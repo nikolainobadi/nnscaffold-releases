@@ -19,6 +19,15 @@ An entry that relaxes a rule says so under **Changed**; its **Behind when** name
 
 ## [Unreleased]
 
+## [0.14.0]
+
+### cli init writes the architecture marker
+
+- **Changed**: `cli init` writes `<tool>/.nn-cli-architecture` holding the nnscaffold version, which is this skill's version. Before, `Workflows/new-cli-project.md` wrote the marker by hand after `init` ran.
+- **Rules**: `Workflows/new-cli-project.md`, step 3.
+- **Generated output**: `cli init` creates `<tool>/.nn-cli-architecture`.
+- **Behind when**: nothing to change; tools created before this already have the marker from the workflow.
+
 ## [0.13.1]
 
 ### Store locks use NnFileKit's withExclusiveLock
