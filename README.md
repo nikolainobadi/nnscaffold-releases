@@ -16,6 +16,8 @@ New tools include an architecture check for tests importing production modules t
 
 Before extending an existing tool, run `nnscaffold cli status` from the repository root to compare its `.nn-cli-architecture` marker with nnscaffold's version without changing files. Use the `nn-cli-architecture` catch-up workflow to bring an older tool up to date. Generated commands use `NnFormattedWorkflowCommand` and `NnStatelessResultsFormatter`; existing tools need NnArgumentParser 2.1.0 or later before adding them.
 
+`cli init` generates a ConsoleProgressKit dependency of 0.9.0 or later. For terminal-width formatting in an existing tool, raise its ConsoleProgressKit minimum to 0.9.0. The `nn-cli-architecture` workflow allows results formatters to hold `outputWidth: Int?` alongside their `TextStyler`, supplied by the command's computed `resultsFormatter` using `TerminalCapabilities.size(for: .standardOutput)?.width`. Read terminal facts directly from `TerminalCapabilities`, rather than the context factory. When the width is `nil`, leave output unwrapped and untruncated.
+
 `cli add-command`, `cli add-group`, `cli add-helper`, `cli add-prompter`, `cli add-use-case`, and `cli add-flow-tests` require confirmation when the marker is behind, ahead, missing, or invalid. Without a terminal they stop; `--yes` does not bypass this check. Use `--ignore-architecture` to explicitly proceed anyway. `--preview` skips the check.
 
 To update an existing tool's architecture checks, run this from the repository root:

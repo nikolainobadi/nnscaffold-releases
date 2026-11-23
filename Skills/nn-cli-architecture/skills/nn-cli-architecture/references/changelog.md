@@ -21,6 +21,15 @@ When a text search of a tool's files can decide an entry's **Behind when** (a na
 
 ## [Unreleased]
 
+## [0.16.3]
+
+### A results formatter may hold the output width
+
+- **Changed**: relaxes universal rule 8. A formatter that lays out to the screen may hold `outputWidth: Int?` from `TerminalCapabilities.size(for: .standardOutput)?.width` (ConsoleProgressKit 0.9.0 or later) beside its `TextStyler`, both built in the command's computed `resultsFormatter`. Universal rule 2 now says terminal facts are never vended by the factory. Before, a formatter held only a `TextStyler`, and width had no allowed source.
+- **Rules**: `SKILL.md`, universal rules 2 and 8 and Don't list item 10; `references/architecture.md`, section 3.
+- **Generated output**: `nnscaffold cli init` writes `from: "0.9.0"` for ConsoleProgressKit in `<tool>/Package.swift`. It wrote `0.7.0` before.
+- **Behind when**: the context factory vends a text styler or a terminal size (`makeTextStyler()`, `makeOutputWidth()`, an `ioctl(TIOCGWINSZ)` call under `Main/`), or a command's `handleResults` passes a width to its formatter. Adopting `size(for:)` requires ConsoleProgressKit 0.9.0 or later.
+
 ## [0.16.2]
 
 ### A results formatter may hold a text styler
