@@ -21,6 +21,15 @@ When a text search of a tool's files can decide an entry's **Behind when** (a na
 
 ## [Unreleased]
 
+## [0.16.1]
+
+### Adding architecture tests doesn't check the marker
+
+- **Changed**: relaxes the 0.16.0 entry "nnscaffold stops when a tool isn't up to date". `cli add-architecture-tests` runs on a tool that isn't up to date, without asking, and no longer accepts `--ignore-architecture`, because catch-up's fix for test-checked entries runs it. Before, it stopped like the other `cli add-*` commands, so catching up meant passing `--ignore-architecture`.
+- **Rules**: `Workflows/catch-up.md`, step 3.
+- **Generated output**: none.
+- **Behind when**: nothing to change.
+
 ## [0.16.0]
 
 ### Architecture tests check more rules

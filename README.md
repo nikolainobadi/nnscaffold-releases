@@ -16,7 +16,7 @@ New tools include an architecture check for tests importing production modules t
 
 Before extending an existing tool, run `nnscaffold cli status` from the repository root to compare its `.nn-cli-architecture` marker with nnscaffold's version without changing files. Use the `nn-cli-architecture` catch-up workflow to bring an older tool up to date. Generated commands use `NnFormattedWorkflowCommand` and `NnStatelessResultsFormatter`; existing tools need NnArgumentParser 2.1.0 or later before adding them.
 
-`cli add-command`, `cli add-group`, `cli add-helper`, `cli add-prompter`, `cli add-use-case`, `cli add-flow-tests`, and `cli add-architecture-tests` require confirmation when the marker is behind, ahead, missing, or invalid. Without a terminal they stop; `--yes` does not bypass this check. Use `--ignore-architecture` to explicitly proceed anyway. `--preview` skips the check.
+`cli add-command`, `cli add-group`, `cli add-helper`, `cli add-prompter`, `cli add-use-case`, and `cli add-flow-tests` require confirmation when the marker is behind, ahead, missing, or invalid. Without a terminal they stop; `--yes` does not bypass this check. Use `--ignore-architecture` to explicitly proceed anyway. `--preview` skips the check.
 
 To update an existing tool's architecture checks, run this from the repository root:
 
@@ -24,7 +24,7 @@ To update an existing tool's architecture checks, run this from the repository r
 nnscaffold cli add-architecture-tests
 ```
 
-This replaces the tool's generated architecture checks. Use `--preview` to review the planned changes first. Replace flagged production imports with their testing modules and add any missing testing modules to the test target's dependencies.
+This replaces the tool's generated architecture checks regardless of its architecture marker, without asking for confirmation, including when no terminal is available. This command no longer accepts `--ignore-architecture`; remove that flag from scripts and invocations. Use `--preview` to review the planned changes first. Replace flagged production imports with their testing modules and add any missing testing modules to the test target's dependencies.
 
 ## Releases
 
