@@ -110,7 +110,7 @@ A version typed at the prompt is checked only after you enter it, and isn't aske
 A tool created before flow files existed has no `FlowFilesTests.swift` and no `Flows/` folder. Finish these steps in one sitting: once the test is added, the tool's whole `swift test` fails until every flow file exists.
 
 1. Refresh this skill in the project so these rules are current (`/sync-skill-refs`, or update the plugin).
-2. From the folder holding the `.xcodeproj`, run `nnscaffold cli add-flow-tests` (add `--header` when the project's Swift files have headers). Never write the test by hand.
+2. From the folder holding the `.xcodeproj`, run `nnscaffold cli add-flow-tests` (add `--header` when the project's Swift files have headers). If it stops because the tool isn't up to date with the architecture, ask the user before passing `--ignore-architecture`. Never write the test by hand.
 3. Run `swift test` in the tool's package. The failure lists every `Flows/<path>.md` to write.
 4. Write each one by tracing its command, following this file.
 5. Run `swift test` again: both flow tests pass. Commit the test, the flow files, and the skill refresh together.

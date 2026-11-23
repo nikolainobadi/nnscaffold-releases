@@ -17,7 +17,53 @@ Sections are newest first. Never edit a released section except to fix a wrong *
 
 An entry that relaxes a rule says so under **Changed**; its **Behind when** names what a tool may now simplify, or "nothing to change". A later entry that replaces an earlier one says which entry it replaces.
 
+When a text search of a tool's files can decide an entry's **Behind when** (a name, an import, a call, a package requirement), the same change adds a test for it to the template `nnscaffold cli add-architecture-tests` writes, marks its Don't list item Checked, and ends the **Behind when** with: "After `nnscaffold cli add-architecture-tests`, `swift test` lists each one." A raised package requirement updates the minimum versions in that template.
+
 ## [Unreleased]
+
+## [0.16.0]
+
+### Architecture tests check more rules
+
+- **Changed**: `ArchitectureRulesTests` now also fails for a command that is an `NnWorkflowCommand` or writes its own `handleResults`, a `SwiftPicker` built without `permissionSubmitMode: .immediate`, a type or file under `UseCases/` named with a `UseCase` suffix, a `Package.swift` requiring NnArgumentParser below 2.1.0, SwiftPickerKit below 0.15.0, or NnFileKit below 0.10.0, and a `Package.swift` without `treatAllWarnings(as: .error)`. Changelog entries a text search can decide get a test in the same change, and catch-up stops searching for them. Before, catch-up searched each tool for these by hand.
+- **Rules**: `SKILL.md` Don't list items 7, 37, 50, 51, and 52; `references/architecture.md`, sections 5 and 8; `references/changelog.md`, Entry format; `Workflows/catch-up.md`, step 3.
+- **Generated output**: `cli add-architecture-tests` (new tests and helpers in `ArchitectureRulesTests.swift`).
+- **Behind when**: `nnscaffold cli add-architecture-tests --preview` shows `ArchitectureRulesTests.swift` would change. After `nnscaffold cli add-architecture-tests`, `swift test` lists each one.
+
+### Commands name their results formatter
+
+- **Changed**: a command conforms to `NnFormattedWorkflowCommand` and names its formatter with `typealias ResultsFormatter = <Feature>ResultsFormatter`; NnArgumentParser provides `handleResults`. `<Feature>ResultsFormatter` is a struct conforming to `NnStatelessResultsFormatter` with an instance `message(for:)`. Tools require NnArgumentParser 2.1.0. Before, each command was an `NnWorkflowCommand` whose own `handleResults` wrote the message of a caseless enum's `static func message(for:)`.
+- **Rules**: `SKILL.md`, universal rules 4 and 8 and Don't list items 7 and 10; `references/architecture.md`, section 3; `references/style.md`, Type body and extensions.
+- **Generated output**: `nnscaffold cli init` (`Package.swift` requires NnArgumentParser 2.1.0); `nnscaffold cli add-command`, `Command/<Feature>.swift`, `Formatter/<Feature>ResultsFormatter.swift`, and `Formatter/<Feature>ResultsFormatterTests.swift`.
+- **Behind when**: the tool's `Package.swift` asks for NnArgumentParser below 2.1.0, a command conforms to `NnWorkflowCommand` or declares `func handleResults`, a formatter is an `enum` with `static func message(for:)`, or a formatter test's `makeSUT()` returns `<Feature>ResultsFormatter.Type`.
+
+### An Assembly may build a shared check
+
+- **Changed**: relaxes universal rule 7. When sibling commands run the same `NnCheck` before their workflow, through `NnCheckedWorkflow`, the group's `<Group>Assembly` may build the whole check, stages included. Before, an Assembly built no stage, so each command built the check itself.
+- **Rules**: `SKILL.md`, universal rule 7 and Don't list item 9; `references/architecture.md`, section 3.
+- **Generated output**: none.
+- **Behind when**: nothing to change; a tool whose commands each build the same check may move it into the group's Assembly.
+
+### nnscaffold shows whether a tool is behind the architecture
+
+- **Changed**: `nnscaffold cli status` compares a tool's `.nn-cli-architecture` marker with the nnscaffold version and prints whether the tool is up to date, behind, or ahead, or has no readable marker. Before, only the skill's workflows compared the marker.
+- **Rules**: `Workflows/catch-up.md`, step 1.
+- **Generated output**: none.
+- **Behind when**: nothing to change.
+
+### nnscaffold stops when a tool isn't up to date
+
+- **Changed**: `cli add-command`, `add-group`, `add-prompter`, `add-helper`, `add-use-case`, `add-flow-tests`, and `add-architecture-tests` now stop before doing anything when the tool isn't up to date: without a terminal they fail and name `--ignore-architecture`, and in a terminal they first ask whether to continue. `--ignore-architecture` and `--preview` skip the check, and `--yes` does not. Before, they ran without comparing the marker. `Workflows/add-command.md` asks the user before passing the flag.
+- **Rules**: `Workflows/add-command.md`, before step 1 and the command lines in steps 4a and 4b; `references/flow-format.md`, Adding flow files to an existing tool.
+- **Generated output**: none.
+- **Behind when**: nothing to change.
+
+### Catch-up records the marker when nothing is pending
+
+- **Changed**: when a tool's marker is older than the skill's version but no changelog entry is pending, catch-up writes the skill's version to the marker without asking. Before, it said the tool was up to date and left the marker as it was, so the marker stayed behind after a release with no entries.
+- **Rules**: `Workflows/catch-up.md`, step 1 and Constraints.
+- **Generated output**: none.
+- **Behind when**: nothing to change.
 
 ## [0.15.0]
 

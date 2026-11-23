@@ -10,8 +10,10 @@ The tool is the package folder whose `Package.swift` has an executable target de
 
 The skill's own version is the `version` in `../../.claude-plugin/plugin.json`, resolved from the directory containing `SKILL.md`. Read `references/changelog.md` completely. Its version sections are newest first; compare versions by semantic version precedence, not as strings. Read `references/exceptions.md` completely, and the tool's exceptions file if it has one.
 
+`nnscaffold cli status`, run from the folder holding the tool, makes the same marker comparison against the nnscaffold version and prints it, without the refactor list. Use it when the user only asks whether the tool is behind.
+
 - **No marker**: the tool predates the changelog. Follow [review-cli.md](review-cli.md) completely with the whole tool as its scope, then continue at step 5.
-- **Marker is a version**: the pending entries are those under `## [Unreleased]` and under every version section newer than the marker. If there are none, say the tool is up to date with `<marker>` and stop. Otherwise continue at step 2.
+- **Marker is a version**: the pending entries are those under `## [Unreleased]` and under every version section newer than the marker. If there are none and the marker is older than the skill's version, there is nothing to refactor: write the skill's version to the marker as step 5 describes, without waiting to be told, and say the tool is up to date with it. If there are none and the marker is the skill's version, say the tool is up to date and stop. Otherwise continue at step 2.
 - **Marker is not a version, or is newer than the skill's version**: say what the file holds, and ask whether to treat the tool as having no marker. Do not guess a version.
 
 ## 2. Read the current rules for each pending entry
@@ -22,13 +24,15 @@ When an entry's **Generated output** names an `nnscaffold` command, the code to 
 
 ## 3. Find the affected code
 
-For each pending entry, search the tool for what its **Behind when** line describes. Read each match far enough to decide its role (step 3 of [review-cli.md](review-cli.md)) and whether it actually breaks the current rule. A search hit alone is not a finding. Match each finding against the tool's exceptions file, and check every entry in it for staleness, as `references/exceptions.md` describes.
+A pending entry whose **Behind when** ends with "After `nnscaffold cli add-architecture-tests`, `swift test` lists each one." is checked by the tool's tests, so don't search for it. The same goes for a pending entry whose **Behind when** another pending entry's **Changed** says `ArchitectureRulesTests` now checks. Its finding is a single fix: run `nnscaffold cli add-architecture-tests`, then `swift test`, and fix each failure it lists. Don't run either command yourself.
+
+For each other pending entry, search the tool for what its **Behind when** line describes. Read each match far enough to decide its role (step 3 of [review-cli.md](review-cli.md)) and whether it actually breaks the current rule. A search hit alone is not a finding. Match each finding against the tool's exceptions file, and check every entry in it for staleness, as `references/exceptions.md` describes.
 
 Tests are in scope only when the request names them, as in a review.
 
 ## 4. Report
 
-Group the report by pending entry, oldest first, under each entry's version and title. List its findings in the entry format of [review-cli.md](review-cli.md) step 5 (**Where**, **Rule**, **What**, **Fix**), with its grouping of repeats. An entry with no affected code gets one line saying so. An entry whose **Behind when** cannot be decided from the code says what is undecidable and why.
+Group the report by pending entry, oldest first, under each entry's version and title. List its findings in the entry format of [review-cli.md](review-cli.md) step 5 (**Where**, **Rule**, **What**, **Fix**), with its grouping of repeats. An entry with no affected code gets one line saying so. Entries the tool's tests check, as step 3 describes, are listed together in one group with that single fix. An entry whose **Behind when** cannot be decided from the code says what is undecidable and why.
 
 After the pending entries, add the **Accepted exceptions** and **Stale exceptions** sections as [review-cli.md](review-cli.md) step 5 describes.
 
@@ -40,7 +44,7 @@ Write the skill's version to `<tool>/.nn-cli-architecture` only when the user sa
 
 ## Constraints
 
-- Do not edit any file except the marker, and that only under step 5, and the tool's exceptions file, and that only when the user approves an entry (**Adding an entry** in `references/exceptions.md`).
+- Do not edit any file except the marker, and that only under step 5 or when step 1 finds nothing pending, and the tool's exceptions file, and that only when the user approves an entry (**Adding an entry** in `references/exceptions.md`).
 - Do not write Swift code, including "what it should look like" snippets.
 - Do not report violations unrelated to a pending entry. A tool with no marker is the exception: its catch-up is a full review.
 - Do not invent changelog history. If the user describes a change the changelog does not have, say the entry is missing and that it belongs under `## [Unreleased]` in `references/changelog.md`.

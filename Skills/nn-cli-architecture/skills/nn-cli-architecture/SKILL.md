@@ -30,17 +30,17 @@ Picker, shell, file-system, and progress-display APIs belong to the SwiftPickerK
 1. **One root, one factory.** The `@main` type conforms to `NnRootCommand`, declares `@OptionGroup var interactivity: InteractivityOptions` once, and implements `static var defaultFactory`. Subcommands are declared as extensions of the root (or of a group) so they reach the factory through the root type.
 2. **The factory is an infrastructure seam.** It vends primitives: a shell, a file system, a picker, and a progress display, which `nnscaffold cli init` generates in every tool; an async shell when a command runs shell work concurrently or must cancel it; and any further side-effect seam that every feature could use and whose real or skipping variant depends on interactivity (a path opener). `Root.makeContext()` bundles them into a `CommandContext`, and is the only place that registers an `NnOutput` writer or `NnInterrupt` cleanups. A factory method per feature is a service locator; features assemble themselves from the primitives instead. A tool that wants its own progress colors passes a `ProgressTheme` to `LiveProgressDisplay(theme:)` in the default factory; nothing else changes.
 3. **Interactivity is read in exactly one place.** The default factory picks the real or the non-interactive picker from `InteractionMode.current`. The real picker is built with `interruptBehavior: .waitForTermination`, so Ctrl+C at a prompt ends the tool instead of handing the workflow an empty answer, and with `permissionSubmitMode: .immediate`, so a confirmation takes a single `y` or `n` keypress. No stage, use case, or brief carries an "is interactive" value. A seam with a skipping variant (a path opener) returns an outcome from the call that may skip, named for the seam (`.opened` or `.skipped`); the performer carries it in `Results`, and the formatter reports what actually happened.
-4. **Every command is an `NnWorkflowCommand`.** Every command other than a group runs the pipeline, however small. One shape means a command that grows needs no rewrite, and `nnscaffold` generates the ceremony.
+4. **Every command is an `NnFormattedWorkflowCommand`.** Every command other than a group runs the pipeline, however small. One shape means a command that grows needs no rewrite, and `nnscaffold` generates the ceremony.
 5. **`makeWorkflow()` is the composition root.** From `Root.makeContext()` it builds every store, use case, and client, and every dependency two stages share, and passes each stage the primitives it needs. That includes the use cases one use case gives to another. The exception is a collaborator that can't exist until the brief or a request does: a stage or use case builds it from collaborators `makeWorkflow()` injected plus that value, as `nn-architecture`, Dependencies between modules, allows. Such a collaborator is never a store or client.
 6. **A stage builds only its private helpers.** A stage may build its own helpers (prompters from the picker, detectors from the file system) when only that stage uses them and they need nothing beyond the primitive it was given. It may also build a collaborator under rule 5's exception.
-7. **`<Group>Assembly` builds what sibling commands share.** When sibling commands in a group build the same use cases, stores, or clients, a `<Group>Assembly` caseless enum in `<Group>/Shared/Command/` may build them. Its only inputs are the `CommandContext` and values `makeWorkflow()` already holds, `makeWorkflow()` is its only caller, and it builds no stage and is never part of the factory.
-8. **`handleResults` writes the final report.** It passes the results to `<Feature>ResultsFormatter.message(for:)` and writes the message with `NnOutput.write(_:)`. Nothing else writes the final report.
+7. **`<Group>Assembly` builds what sibling commands share.** When sibling commands in a group build the same use cases, stores, or clients, a `<Group>Assembly` caseless enum in `<Group>/Shared/Command/` may build them. Its only inputs are the `CommandContext` and values `makeWorkflow()` already holds, `makeWorkflow()` is its only caller, and it builds no stage and is never part of the factory. The one exception is a shared check: when sibling commands run the same `NnCheck` before their workflow, the Assembly may build the whole check, its four stages included (`references/architecture.md`, section 3).
+8. **The formatter composes the final report.** The command names its formatter with `typealias ResultsFormatter = <Feature>ResultsFormatter` and writes no `handleResults` of its own: the one `NnFormattedWorkflowCommand` provides passes the results to the formatter's `message(for:)` and writes the message with `NnOutput.write(_:)`. Nothing else writes the final report.
 9. **Options and Input.** Flags live in a `<Feature>Options: ParsableArguments` type that rejects conflicting flags in `validate()` and converts to a plain `<Feature>Input` struct (no ArgumentParser types) through `makeInput()`. The Input reaches the inspection interpreter through its initializer. A command with no flags has neither type. Flags that two or more commands take with the same meaning live once, in a `<Concern>Options` group in the closest `Shared/Command/`. Each command includes it with `@OptionGroup`, its Input holds a `<Concern>Input`, and its Findings and Brief hold the derived `<Concern>Settings` whole (section 4 of `references/architecture.md`).
 10. **No default parameter values under `Sources/`.** Every call site spells every argument. Stored-property defaults on `ParsableArguments` are properties, not parameters, and are allowed.
 11. **Every command has a non-empty `abstract`.** A command whose prompts have no flag equivalent says so in `discussion`.
 12. **Every line the user reads goes through `NnOutput.write(_:)` or the progress display.** The final report, warnings, and text that sets up a prompt go through `NnOutput.write(_:)`. Progress on tracked work (`track`, `note`, activity updates) goes through the `ProgressDisplay` the factory vends; it draws on stderr itself, `testRun` does not capture it, and tests assert on what a mock display recorded. How `NnOutput` is displayed belongs to the writer registered in `Root.makeContext()`: `ProgressAwareOutputWriter` forwards to the display's `writeOutput(_:)` so results never draw over running activities.
 13. **Command-scoped state stays in the command's task tree.** `contextFactory`, `Root.makeContext()`, and `InteractionMode.current` are read from `makeWorkflow()` and the code it calls, never from `Task.detached`, where NnArgumentParser traps.
-14. **A mode is a command.** A flag that changes which inspector runs or which set of questions the command has is a separate command, grouped with its sibling under a group when they belong together. A flag that answers one of the command's questions, or changes one step of the same work, is a value: a promptable flag skips its prompt but leaves the set of questions unchanged. An `NnWorkflowCommand` runs one pipeline, so two jobs are two commands, and each gets its own `--help`.
+14. **A mode is a command.** A flag that changes which inspector runs or which set of questions the command has is a separate command, grouped with its sibling under a group when they belong together. A flag that answers one of the command's questions, or changes one step of the same work, is a value: a promptable flag skips its prompt but leaves the set of questions unchanged. A command runs one pipeline, so two jobs are two commands, and each gets its own `--help`.
 
 ## Stage rules
 
@@ -96,10 +96,10 @@ Each item is marked with how it's enforced. **Generated:** `nnscaffold` produces
 
 **Command** (universal rules 4 to 9, 11, 12, and 14)
 
-7. A command other than a group that is not an `NnWorkflowCommand`. [Generated]
+7. A command other than a group that is not an `NnFormattedWorkflowCommand`, or that writes its own `handleResults`. [Checked]
 8. A store, use case, or client, or a dependency two stages share, built outside `makeWorkflow()` or its group's `<Group>Assembly`, other than a collaborator that is neither a store nor a client, built from injected collaborators plus the brief or a request (universal rule 5). [Judgment]
-9. A `<Group>Assembly` that builds a stage, reads interactivity, takes more than the `CommandContext` and values `makeWorkflow()` holds, or is called from anywhere but `makeWorkflow()`. [Judgment]
-10. A final report written anywhere but `handleResults`, or composed anywhere but `<Feature>ResultsFormatter` [Judgment]; any `print` under `Sources/` [Checked]; any direct standard-error write under `Sources/` [Judgment].
+9. A `<Group>Assembly` that builds a stage outside a shared `NnCheck`, reads interactivity, takes more than the `CommandContext` and values `makeWorkflow()` holds, or is called from anywhere but `makeWorkflow()`. [Judgment]
+10. A final report written anywhere but the provided `handleResults`, or composed anywhere but `<Feature>ResultsFormatter` [Judgment]; any `print` under `Sources/` [Checked]; any direct standard-error write under `Sources/` [Judgment].
 11. A `<Feature>Workflow` with behavior beyond its five `let`s. [Generated]
 12. Conflicting flags not rejected in `validate()`, an `Input` holding ArgumentParser types, or Options and Input on a command with no flags; the same flag with the same meaning declared in two commands' Options instead of a shared `<Concern>Options`, or a shared settings value split back into separate Findings or Brief fields. [Judgment]
 13. An empty `abstract` [Generated], or prompts with no flag equivalent and no mention of it in `discussion` [Judgment].
@@ -144,7 +144,7 @@ Each item is marked with how it's enforced. **Generated:** `nnscaffold` produces
 
 **Interruption, concurrency, and progress** (universal rules 2, 3, 12, and 13; the Inspect and Perform stage rules)
 
-37. An interactive `SwiftPicker` built without `interruptBehavior: .waitForTermination`. [Checked]
+37. An interactive `SwiftPicker` built without `interruptBehavior: .waitForTermination` or without `permissionSubmitMode: .immediate`. [Checked]
 38. An `NnOutput` writer or `NnInterrupt` cleanup registered anywhere but `Root.makeContext()`. [Checked]
 39. The `ChildProcesses.terminateAll(gracePeriod:)` cleanup missing from `Root.makeContext()`. [Generated]
 40. `contextFactory`, `Root.makeContext()`, or `InteractionMode.current` read from `Task.detached`. [Judgment]
@@ -172,6 +172,15 @@ Each item is marked with how it's enforced. **Generated:** `nnscaffold` produces
 **Tests** (`references/style.md`, Imports)
 
 49. A test file that imports a production package a testing package re-exports (`<App>FileKit` when `<App>FileTesting` exists, `ConsoleProgressKit` when `ConsoleProgressTesting` exists), instead of importing the testing package and adding it to the test target's dependencies when it is missing. [Checked]
+
+**Use case names** (`references/style.md`, Naming)
+
+50. A type or file under `UseCases/` whose name ends in `UseCase`. [Checked]
+
+**Packages** (`references/architecture.md`, section 5)
+
+51. A tool or Core `Package.swift` that requires NnArgumentParser below 2.1.0, SwiftPickerKit below 0.15.0, or NnFileKit below 0.10.0. [Checked]
+52. A tool or Core `Package.swift` without `treatAllWarnings(as: .error)` on every target. [Checked]
 
 ## Completion
 

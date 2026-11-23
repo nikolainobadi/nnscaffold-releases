@@ -26,7 +26,7 @@ The root is the only type that conforms to `NnRootCommand`. It holds:
 
 A **group** (`ship`, `config`) is a plain `ParsableCommand` with only `configuration` and its child subcommands. It declares no options and no `run()`. A group comes from `nnscaffold cli add-group` and a command from `nnscaffold cli add-command`; both register themselves on their parent.
 
-Subcommands are declared as `extension Root { struct Feature: NnWorkflowCommand { … } }`, or `extension Root.Group { … }` for a grouped command, so the type name reads as its command path.
+Subcommands are declared as `extension Root { struct Feature: NnFormattedWorkflowCommand { … } }`, or `extension Root.Group { … }` for a grouped command, so the type name reads as its command path.
 
 ## 2. Dependencies
 
@@ -72,7 +72,9 @@ Stores (configuration files, pending-state folders) are not factory products. Th
 
 ```swift
 extension Root {
-    struct Feature: NnWorkflowCommand {
+    struct Feature: NnFormattedWorkflowCommand {
+        typealias ResultsFormatter = FeatureResultsFormatter
+
         static let configuration = CommandConfiguration(commandName: "feature", abstract: "…")
 
         @OptionGroup var options: FeatureOptions
@@ -82,12 +84,6 @@ extension Root {
             // build stores, inspector, collector, performer from context
             return .init(inspector: …, inspectionInterpreter: .init(input: options.makeInput()), collector: …, collectionInterpreter: .init(), performer: …)
         }
-
-        func handleResults(_ results: FeaturePerformer.Results) throws {
-            if let message = FeatureResultsFormatter.message(for: results) {
-                NnOutput.write(message)
-            }
-        }
     }
 }
 ```
@@ -96,8 +92,9 @@ extension Root {
 - What `makeWorkflow()` builds, and what a stage may build itself, is set by universal rules 5 and 6. A dependency two stages share is, for example, one prompter used by both the collector and a use case.
 - `<Group>Assembly` (universal rule 7) lives in `<Group>/Shared/Command/<Group>Assembly.swift`. Its static methods return built dependencies, which each `makeWorkflow()` injects. Because it is never part of the factory, a test's factory still replaces every primitive it uses.
 - `<Feature>Workflow` is a struct of five `let` properties conforming to `NnWorkflow`. It has no behavior of its own.
+- A **shared check** is a condition several sibling commands verify before their own work, such as nnscaffold's architecture check. It is an `NnCheck`: a struct of four `let`s (inspector, inspection interpreter, collector, collection interpreter) with no behavior of its own, in `<Group>/Shared/Workflow/<Check>.swift`, with its stages in the matching `<Group>/Shared/` stage folders. It stops the command by throwing, usually from its collection interpreter; whatever it returns is discarded. Each command's `makeWorkflow()` returns `NnCheckedWorkflow<<Check>, <Feature>Workflow>`, passing the check as `checks:` and its own workflow as `base:`. The check runs to completion before the command's inspector. Because every command builds the check the same way, the group's `<Group>Assembly` builds it (universal rule 7).
 - `<Feature>Options` and `<Feature>Input` follow universal rule 9; `validate()` rejects conflicting pairs with `ValidationError`. Every Input field is explicit. Optional fields mean "the caller did not decide this"; the inspection interpreter turns each into a requirement.
-- `<Feature>ResultsFormatter` is a caseless enum with `static func message(for:) -> String?`, called from `handleResults` (universal rule 8). Progress or warnings during work are written by the use case that produced them: through the progress display. Progress during inspection is the one exception, and comes from `NnTrackedInspector` (section 2). Text that sets up a prompt (a suggestion to accept, a summary before a confirmation) belongs with that prompt and is written the same way. `NnOutput` routes every write through the registered writer, suppresses writes once an interrupt is being handled, and is the only output `testRun` captures.
+- `<Feature>ResultsFormatter` is a struct with no stored properties that conforms to `NnStatelessResultsFormatter` and implements `func message(for:) -> String?`. The command names it in `typealias ResultsFormatter`, and the `handleResults` that `NnFormattedWorkflowCommand` provides calls it (universal rule 8). Progress or warnings during work are written by the use case that produced them: through the progress display. Progress during inspection is the one exception, and comes from `NnTrackedInspector` (section 2). Text that sets up a prompt (a suggestion to accept, a summary before a confirmation) belongs with that prompt and is written the same way. `NnOutput` routes every write through the registered writer, suppresses writes once an interrupt is being handled, and is the only output `testRun` captures.
 - Stage methods may be `async`. `nnscaffold` generates `inspect()` and `perform(brief:)` as synchronous `throws`; a stage that awaits anything changes its signature to `async throws`. Never bridge with `Task { }`: the stage would return before the work finishes and its errors would be lost. The workflow runs on an executor that tolerates blocking, so synchronous shell and file work inside a stage is fine. Where concurrent work lives is set by the Perform stage rule. Command-scoped state is inherited by child tasks but not by `Task.detached` (universal rule 13).
 
 ## 4. Stage payload types and where they live
@@ -134,6 +131,8 @@ Interpreters, collectors, prompters, formatters, and the command itself stay in 
 
 A new library target in the Core package comes from `nnscaffold cli add-kit`, never from hand edits to the Core manifest; `Workflows/add-command.md` step 4a has the invocation.
 
+Both the tool's and the Core package's `Package.swift` end with the loop that adds `.treatAllWarnings(as: .error)` to every target, and require at least NnArgumentParser 2.1.0, SwiftPickerKit 0.15.0, and NnFileKit 0.10.0, whichever of them they use. `nnscaffold cli init` writes both that way.
+
 ## 6. Errors
 
 One error enum per feature, `<Feature>Error: Error, Equatable`, with a `LocalizedError` conformance in an extension. Each message tells the user what to do next, not only what went wrong. A failure after the first change also follows **Say where things stand** in the `nn-architecture` skill. It lives in `Features/<Feature>/Workflow/`. A shared helper's error lives in the `Workflow/` of the closest `Shared/` that holds every feature using the helper.
@@ -153,7 +152,7 @@ Sources/<tool>/
   Features/
     <Feature>/
       Command/
-        <Feature>.swift             the NnWorkflowCommand
+        <Feature>.swift             the NnFormattedWorkflowCommand
         <Feature>Options.swift      omit when the command has no flags
         <Feature>Input.swift        omit when the command has no flags
       Workflow/
@@ -228,7 +227,7 @@ Tests live in `Tests/<tool>Tests/`, mirroring the path below `Sources/<tool>/`: 
 
 `Tests/<tool>Tests/Main/FlowFilesTests.swift` fails when a leaf command has no flow file or a flow file has no command (`references/flow-format.md`). `nnscaffold cli init` writes it, and `nnscaffold cli add-flow-tests` adds it to a tool created before flow files. It is generated and never edited.
 
-`Tests/<tool>Tests/Main/ArchitectureRulesTests.swift` fails when the tool breaks a Don't list item marked Checked, except the flow-file item, and each failure names the file and the rule. Its scans read only the tool's own `Sources/`, except item 49: that scan reads `Tests/<tool>Tests/`, and finds which production packages have testing versions from a fixed list of shared packages plus the `Exports.swift` files of the Core package's `*Testing` and `*Kit` targets, read when the test runs. `nnscaffold cli init` writes it, and `nnscaffold cli add-architecture-tests` adds it to an existing tool and replaces it when the rules change. It is generated and never edited.
+`Tests/<tool>Tests/Main/ArchitectureRulesTests.swift` fails when the tool breaks a Don't list item marked Checked, except the flow-file item, and each failure names the file and the rule. Its scans read only the tool's own `Sources/`, except items 49, 51, and 52. Item 49's scan reads `Tests/<tool>Tests/`, and finds which production packages have testing versions from a fixed list of shared packages plus the `Exports.swift` files of the Core package's `*Testing` and `*Kit` targets, read when the test runs. Items 51 and 52 read the tool's and the Core package's `Package.swift`; item 51 reads only requirements written as `.package(url:from:)`. `nnscaffold cli init` writes it, and `nnscaffold cli add-architecture-tests` adds it to an existing tool and replaces it when the rules change. It is generated and never edited.
 
 When commands share a `<Concern>Settings`, the test factory has two helpers for it: one that takes every field, for tests that check those fields, and short ones that fix the fields a test does not care about (`make<Concern>Settings(previewRequested:)`). Tests that do not check the shared values use the short helpers, so adding a field to the settings changes only the factory and the tests that check it.
 
