@@ -88,13 +88,37 @@ extension Root {
 }
 ```
 
+A command whose formatter styles its output differs only in these lines:
+
+```swift
+extension Root {
+    struct Feature: NnFormattedWorkflowCommand {
+        var resultsFormatter: FeatureResultsFormatter {
+            .init(textStyler: TerminalCapabilities.textStyler(for: .standardOutput))
+        }
+        …
+    }
+}
+
+struct FeatureResultsFormatter {
+    let textStyler: any TextStyler
+}
+
+// MARK: - NnResultsFormatter
+extension FeatureResultsFormatter: NnResultsFormatter {
+    func message(for results: FeaturePerformer.Results) -> String? {
+        …
+    }
+}
+```
+
 - `makeWorkflow()` is where a reader starts: it names every stage the command runs and everything each stage is given.
 - What `makeWorkflow()` builds, and what a stage may build itself, is set by universal rules 5 and 6. A dependency two stages share is, for example, one prompter used by both the collector and a use case.
 - `<Group>Assembly` (universal rule 7) lives in `<Group>/Shared/Command/<Group>Assembly.swift`. Its static methods return built dependencies, which each `makeWorkflow()` injects. Because it is never part of the factory, a test's factory still replaces every primitive it uses.
 - `<Feature>Workflow` is a struct of five `let` properties conforming to `NnWorkflow`. It has no behavior of its own.
 - A **shared check** is a condition several sibling commands verify before their own work, such as nnscaffold's architecture check. It is an `NnCheck`: a struct of four `let`s (inspector, inspection interpreter, collector, collection interpreter) with no behavior of its own, in `<Group>/Shared/Workflow/<Check>.swift`, with its stages in the matching `<Group>/Shared/` stage folders. It stops the command by throwing, usually from its collection interpreter; whatever it returns is discarded. Each command's `makeWorkflow()` returns `NnCheckedWorkflow<<Check>, <Feature>Workflow>`, passing the check as `checks:` and its own workflow as `base:`. The check runs to completion before the command's inspector. Because every command builds the check the same way, the group's `<Group>Assembly` builds it (universal rule 7).
 - `<Feature>Options` and `<Feature>Input` follow universal rule 9; `validate()` rejects conflicting pairs with `ValidationError`. Every Input field is explicit. Optional fields mean "the caller did not decide this"; the inspection interpreter turns each into a requirement.
-- `<Feature>ResultsFormatter` is a struct with no stored properties that conforms to `NnStatelessResultsFormatter` and implements `func message(for:) -> String?`. The command names it in `typealias ResultsFormatter`, and the `handleResults` that `NnFormattedWorkflowCommand` provides calls it (universal rule 8). Progress or warnings during work are written by the use case that produced them: through the progress display. Progress during inspection is the one exception, and comes from `NnTrackedInspector` (section 2). Text that sets up a prompt (a suggestion to accept, a summary before a confirmation) belongs with that prompt and is written the same way. `NnOutput` routes every write through the registered writer, suppresses writes once an interrupt is being handled, and is the only output `testRun` captures.
+- `<Feature>ResultsFormatter` is a struct with no stored properties that conforms to `NnStatelessResultsFormatter` and implements `func message(for:) -> String?`. The command names it in `typealias ResultsFormatter`, and the `handleResults` that `NnFormattedWorkflowCommand` provides calls it (universal rule 8). A formatter that styles its output takes the second form: it conforms to `NnResultsFormatter` and holds only `let textStyler: any TextStyler`, and the command replaces the `typealias` with a computed `var resultsFormatter` that builds it from `TerminalCapabilities.textStyler(for: .standardOutput)`. The property is computed because a stored one breaks `Decodable`. With a stored property, the formatter follows the usual body and extension split: the body holds `textStyler` and `init`, and `message(for:)` goes in an extension (see the snippet below). Progress or warnings during work are written by the use case that produced them: through the progress display. Progress during inspection is the one exception, and comes from `NnTrackedInspector` (section 2). Text that sets up a prompt (a suggestion to accept, a summary before a confirmation) belongs with that prompt and is written the same way. `NnOutput` routes every write through the registered writer, suppresses writes once an interrupt is being handled, and is the only output `testRun` captures.
 - Stage methods may be `async`. `nnscaffold` generates `inspect()` and `perform(brief:)` as synchronous `throws`; a stage that awaits anything changes its signature to `async throws`. Never bridge with `Task { }`: the stage would return before the work finishes and its errors would be lost. The workflow runs on an executor that tolerates blocking, so synchronous shell and file work inside a stage is fine. Where concurrent work lives is set by the Perform stage rule. Command-scoped state is inherited by child tasks but not by `Task.detached` (universal rule 13).
 
 ## 4. Stage payload types and where they live

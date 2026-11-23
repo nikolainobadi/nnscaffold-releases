@@ -21,6 +21,15 @@ When a text search of a tool's files can decide an entry's **Behind when** (a na
 
 ## [Unreleased]
 
+## [0.16.2]
+
+### A results formatter may hold a text styler
+
+- **Changed**: relaxes universal rule 8. A formatter that styles its output conforms to `NnResultsFormatter`, holds the `TextStyler` from `TerminalCapabilities.textStyler(for: .standardOutput)`, and the command vends it through a computed `resultsFormatter`; the stateless `typealias` form stays the default. Before, every formatter was stateless and named by `typealias`.
+- **Rules**: `SKILL.md`, universal rule 8 and Don't list item 10; `references/architecture.md`, section 3; `references/style.md`, Type body and extensions.
+- **Generated output**: none.
+- **Behind when**: nothing to change; a formatter that calls `TerminalCapabilities` inside `message(for:)`, or a command that writes its own `handleResults` only to pass a styler, may take the styler through `init` instead.
+
 ## [0.16.1]
 
 ### Adding architecture tests doesn't check the marker

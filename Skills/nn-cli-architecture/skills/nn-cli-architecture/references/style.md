@@ -10,7 +10,7 @@ How a Swift source file in the tool is laid out and named. Read completely befor
 ## Type body and extensions
 
 - The type body holds stored properties and `init`, nothing else. Methods, computed properties, nested types, and conformances live in extensions below, each under a MARK.
-- Three exemptions, because the whole body is a framework contract: a `ParsableCommand` keeps `typealias ResultsFormatter`, `configuration`, its `@OptionGroup` and flag properties, and `makeWorkflow()` in the body; `DefaultContextFactory` keeps its `make*` methods in the body; an Options type keeps `validate()` in the body.
+- Three exemptions, because the whole body is a framework contract: a `ParsableCommand` keeps `typealias ResultsFormatter` or the computed `resultsFormatter`, `configuration`, its `@OptionGroup` and flag properties, and `makeWorkflow()` in the body; `DefaultContextFactory` keeps its `make*` methods in the body; an Options type keeps `validate()` in the body.
 - A caseless helper enum keeps its public static API in the body and its private static helpers in a `private extension`.
 - An implemented type whose body would be completely empty (no stored properties and no `init`) is not declared as `struct X { }` with its code in extensions. Its declaration adopts its protocol and its body holds that surface. Private helpers, nested types, and further conformances stay in extensions below under their MARKs. A type with any `init`, including a `public init() { }`, keeps the usual split. Generated stubs (`fatalError("nnscaffold: implement …")`), generated test structs with no tests yet, and payloads with no fields yet stay as generated until they are implemented.
 
