@@ -13,13 +13,42 @@ Sections are newest first. Never edit a released section except to fix a wrong *
 - **Rules**: where the current rule lives (a `SKILL.md` universal or stage rule, a Don't list item, a reference file and section), or "none".
 - **Generated output**: which `nnscaffold` command now generates something different, and which files, or "none".
 - **Behind when**: what an existing tool shows when it predates this entry (a type, a file, a call, a missing registration), concrete enough to search for.
+- **Requires catch-up**: yes or no.
 ```
+
+**Requires catch-up** is `yes` when **Behind when** names something an existing tool has to change, and `no` when nothing does: a relaxation ("nothing to change"), or a change only tools created afterward see. An entry marked `yes` also sets `architectureRequiredAfter` in `nnscaffold/Sources/nnscaffold/Main/Nnscaffold.swift` to the current nnscaffold version in the same change; `ArchitectureRequiredAfterTests` fails until it does. nnscaffold's `cli` commands stop only for a tool whose marker isn't newer than that version. Entries released before this field existed have no such line and count as `yes`.
 
 An entry that relaxes a rule says so under **Changed**; its **Behind when** names what a tool may now simplify, or "nothing to change". A later entry that replaces an earlier one says which entry it replaces.
 
 When a text search of a tool's files can decide an entry's **Behind when** (a name, an import, a call, a package requirement), the same change adds a test for it to the template `nnscaffold cli add-architecture-tests` writes, marks its Don't list item Checked, and ends the **Behind when** with: "After `nnscaffold cli add-architecture-tests`, `swift test` lists each one." A raised package requirement updates the minimum versions in that template.
 
 ## [Unreleased]
+
+## [0.17.0]
+
+### Commands conform to NnWorkflowCommand
+
+- **Changed**: NnArgumentParser 3.0.0 renames `NnFormattedWorkflowCommand` to `NnWorkflowCommand`, and the protocol whose conformers write their own `handleResults` from `NnWorkflowCommand` to `NnCustomResultsWorkflowCommand`. Every command now conforms to `NnWorkflowCommand`, and a tool requires NnArgumentParser 3.0.0. Before, every command conformed to `NnFormattedWorkflowCommand`, and a tool required 2.1.0.
+- **Rules**: universal rules 4 and 8; Don't list items 7 and 51; `references/architecture.md`, sections 1, 3, and 7.
+- **Generated output**: `nnscaffold cli add-command` writes `NnWorkflowCommand` in `Command/<Feature>.swift`. `nnscaffold cli init` writes `from: "3.0.0"` for NnArgumentParser in `<tool>/Package.swift`. `nnscaffold cli add-architecture-tests` flags a command conforming to `NnCustomResultsWorkflowCommand` or `NnFormattedWorkflowCommand`, and a `Package.swift` requiring NnArgumentParser below 3.0.0.
+- **Behind when**: a command conforms to `NnFormattedWorkflowCommand`, or a tool or Core `Package.swift` requires NnArgumentParser below 3.0.0. Rename the conformance to `NnWorkflowCommand` and raise the requirement to 3.0.0 together, since neither compiles without the other. After `nnscaffold cli add-architecture-tests`, `swift test` lists each one.
+- **Requires catch-up**: yes.
+
+### Shared checks are removed
+
+- **Changed**: a precondition several sibling commands share now goes in each command's inspection, through a shared inspector helper and a shared interpreter rule, and a `<Group>Assembly` builds no stage. Before, sibling commands could run the same `NnCheck` before their workflow through `NnCheckedWorkflow`, and the Assembly could build it. NnArgumentParser 3.0.0 removes `NnCheck`, `NnRunnableCheck`, `NnCheckGroup`, and `NnCheckedWorkflow`.
+- **Rules**: universal rule 7; Don't list item 9; `references/architecture.md`, section 3.
+- **Generated output**: none.
+- **Behind when**: a tool names `NnCheck`, `NnCheckGroup`, or `NnCheckedWorkflow`. Move the precondition into each command's inspection. A check that prompts keeps a type local to the tool and records an exception (`references/exceptions.md`). No known tool names them, and NnArgumentParser 3.0.0 turns a leftover use into a compile error, so no architecture test is added.
+- **Requires catch-up**: no.
+
+### nnscaffold stops only for a required catch-up
+
+- **Changed**: nnscaffold's `cli` commands now stop only when the tool's marker isn't newer than the last version that needs a catch-up, and `nnscaffold cli status` says when a tool is behind with nothing required. Entries now say whether they require a catch-up, and `Workflows/catch-up.md` records the new version without a report when no pending entry does. Before, the commands stopped whenever the marker was older than nnscaffold's version.
+- **Rules**: this file, Entry format; `Workflows/catch-up.md`, steps 1 and 4.
+- **Generated output**: none.
+- **Behind when**: nothing to change.
+- **Requires catch-up**: no.
 
 ## [0.16.3]
 

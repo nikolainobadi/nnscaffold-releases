@@ -10,10 +10,12 @@ The tool is the package folder whose `Package.swift` has an executable target de
 
 The skill's own version is the `version` in `../../.claude-plugin/plugin.json`, resolved from the directory containing `SKILL.md`. Read `references/changelog.md` completely. Its version sections are newest first; compare versions by semantic version precedence, not as strings. Read `references/exceptions.md` completely, and the tool's exceptions file if it has one.
 
-`nnscaffold cli status`, run from the folder holding the tool, makes the same marker comparison against the nnscaffold version and prints it, without the refactor list. Use it when the user only asks whether the tool is behind.
+`nnscaffold cli status`, run from the folder holding the tool, makes the same marker comparison against the nnscaffold version and prints it, without the refactor list, including whether any pending change requires a catch-up. Use it when the user only asks whether the tool is behind.
+
+An entry requires a catch-up when its **Requires catch-up** line says `yes`, or when it has no such line (entries released before the field existed).
 
 - **No marker**: the tool predates the changelog. Follow [review-cli.md](review-cli.md) completely with the whole tool as its scope, then continue at step 5.
-- **Marker is a version**: the pending entries are those under `## [Unreleased]` and under every version section newer than the marker. If there are none and the marker is older than the skill's version, there is nothing to refactor: write the skill's version to the marker as step 5 describes, without waiting to be told, and say the tool is up to date with it. If there are none and the marker is the skill's version, say the tool is up to date and stop. Otherwise continue at step 2.
+- **Marker is a version**: the pending entries are those under `## [Unreleased]` and under every version section newer than the marker. If there are none, or none of them requires a catch-up, and the marker is older than the skill's version, there is nothing to refactor: write the skill's version to the marker as step 5 describes, without waiting to be told, and say the tool is up to date with it. List each pending entry by title as an optional simplification, if there are any. If there are none and the marker is the skill's version, say the tool is up to date and stop. Otherwise continue at step 2.
 - **Marker is not a version, or is newer than the skill's version**: say what the file holds, and ask whether to treat the tool as having no marker. Do not guess a version.
 
 ## 2. Read the current rules for each pending entry
@@ -33,6 +35,8 @@ Tests are in scope only when the request names them, as in a review.
 ## 4. Report
 
 Group the report by pending entry, oldest first, under each entry's version and title. List its findings in the entry format of [review-cli.md](review-cli.md) step 5 (**Where**, **Rule**, **What**, **Fix**), with its grouping of repeats. An entry with no affected code gets one line saying so. Entries the tool's tests check, as step 3 describes, are listed together in one group with that single fix. An entry whose **Behind when** cannot be decided from the code says what is undecidable and why.
+
+Entries that don't require a catch-up come after the others, in one group headed **Optional**, one line each naming the entry and what the tool may simplify.
 
 After the pending entries, add the **Accepted exceptions** and **Stale exceptions** sections as [review-cli.md](review-cli.md) step 5 describes.
 
