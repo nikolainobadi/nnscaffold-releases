@@ -46,14 +46,15 @@ The skill activates on its own for requests about Swift CLI structure. Examples:
 
 - "Add flow files to this CLI" → follows **Adding flow files to an existing tool** in `references/flow-format.md`: runs `nnscaffold cli add-flow-tests`, then writes a flow file for each command `swift test` lists.
 
-Expected results are files in the tool's feature folder, a stage-plan table in the reply, and a build. Tests are added only when asked for.
+Expected results are files in the tool's feature folder, a stage-plan table and a test plan in the reply, the tests, and a build.
 
 ## Files
 
 | File | Role |
 | --- | --- |
 | `skills/nn-cli-architecture/SKILL.md` | Entry file: scope, universal rules, stage rules, routing, Don't list, completion |
-| `skills/nn-cli-architecture/references/architecture.md` | Entry point, dependencies, command shape, stage payload placement, module boundaries, errors, folder layout, testing shape |
+| `skills/nn-cli-architecture/references/architecture.md` | Entry point, dependencies, command shape, stage payload placement, module boundaries, errors, folder layout, where tests live |
+| `skills/nn-cli-architecture/references/testing.md` | Which tests a command's plan lists and how they are written; the one file to edit when test guidance changes |
 | `skills/nn-cli-architecture/references/style.md` | File style and naming |
 | `skills/nn-cli-architecture/Workflows/new-cli-project.md` | Procedure for a new tool |
 | `skills/nn-cli-architecture/Workflows/add-command.md` | Procedure for a new or reshaped command, with an illustrative file table |

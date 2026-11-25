@@ -43,9 +43,9 @@ If the command fails, report its error and stop. Do not create or repair these f
 
 Follow `Workflows/add-command.md` completely for the first command, with `--parent <tool>`. Run it from the same folder; it registers the command in the root's `configuration`.
 
-## 5. Tests (only when requested)
+## 5. Tests
 
-`init` already created `MockContextFactory.swift` and `<Root>TestRunner.swift`, and the first command's workflow left its test files with only a `makeSUT`. When the request asks for tests, write them there, starting with one `testRun` test that runs the first command with `--help` or its happy path through `<Root>TestRunner` and `MockContextFactory`. Follow `TestingReference.md` in the NnArgumentParser skill.
+`init` already created `MockContextFactory.swift` and `<Root>TestRunner.swift`. The first command's tests are planned in step 2a of its add-command workflow and written in its step 5, following `references/testing.md`; its whole-command test runs through `<Root>TestRunner` and `MockContextFactory`.
 
 ## 6. Build and report
 

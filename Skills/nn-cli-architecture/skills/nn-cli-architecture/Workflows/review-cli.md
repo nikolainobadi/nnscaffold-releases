@@ -19,7 +19,7 @@ Read the code in scope. For each type, decide its role (root, factory, command, 
 1. Walk the Don't list in `SKILL.md` against every type in scope, using the roles from step 3. Follow each item's mark: for Generated, check only code changed after generation; for Checked, skip the item if the project has that test (`ArchitectureRulesTests.swift` or `FlowFilesTests.swift`), and check it by reading if not; for Judgment, read the code closely.
 2. Check each feature folder against `references/architecture.md` section 7, and each payload type against section 4.
 3. Check each Swift file against `references/style.md`: header, comments, type body, MARK order, nesting, expressions, naming. The header check follows the project's convention: a file without a header is a violation only when the project's other Swift files have one.
-4. Tests only when in scope: check their layout and kind against `references/architecture.md` section 8. For test-file internals, defer to the NnArgumentParser skill's `TestingReference.md`.
+4. Tests only when in scope: check their layout against `references/architecture.md` section 8 and their kind against `references/testing.md` section 2. For test-file internals, defer to the NnArgumentParser skill's `TestingReference.md`.
 5. Flow files: each leaf command in scope has `Flows/<command path>.md`, and it matches the code. Compare its steps, questions, stops, and Code line against the files `references/flow-format.md` traces them from, and check it against that file's rules.
 6. Exceptions: match each finding against the tool's exceptions file, and check every entry in it for staleness, as `references/exceptions.md` describes.
 

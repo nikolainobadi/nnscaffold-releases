@@ -52,6 +52,7 @@ Show the user, before step 4 runs:
 When `--parent` names a group that does not exist yet, the plan also shows the `add-group` invocation that creates it (step 4a).
 
 3. The files the run creates: run the invocation with `--preview` and show its list instead of writing one. When the tool doesn't exist yet (a new project), show it after `cli init` creates the tool. A prompter or helper the spec doesn't create is listed as the `add-prompter` or `add-helper` invocation that creates it, never as a file to write.
+4. The test plan, as section 1 of `references/testing.md` describes.
 
 ## 2b. Write the spec
 
@@ -242,7 +243,7 @@ A tool whose `Package.swift` asks for NnArgumentParser below 1.3.0 raises it fir
 
 ## 5. Build and check
 
-Run `swift build`. Walk the Don't list in `SKILL.md` against the new feature folder and fix what fails. When the request includes tests, write them into the files listed under `Tests to write:` and run `swift test`; otherwise leave those files as generated and name them in the report as tests still to write. Report the files created and the command's invocation.
+Run `swift build`. Walk the Don't list in `SKILL.md` against the new feature folder and fix what fails. Write the tests from the test plan, as section 2 of `references/testing.md` describes, and run `swift test`. Report the files created and the command's invocation.
 
 ## 6. Write the flow file
 
@@ -256,14 +257,14 @@ Check first whether another command already takes this flag with the same meanin
 - **One-step value** (no interpreter asks for it; one step of the work uses it): `<Feature>Options`, with its `validate()` when the flag conflicts with another; `<Feature>Input`; the inspection interpreter's handoff into `<Feature>Findings`; the collection interpreter's handoff into the performer's `Brief`; and the performer or use case that uses it. A passthrough command has no collection interpreter, and its Brief is its Findings.
 - **Promptable value** (asked for when the flag is omitted): `<Feature>Options`; `<Feature>Input`; `<Feature>Requirements`, with its `Info` type; the inspection interpreter, which makes it `.known` from the input or `.unknown(Info)`; a prompter from `nnscaffold cli add-prompter` (step 4b); the collector's `.ask` line that `add-prompter` prints; the collection interpreter; the performer's `Brief`; and the performer or use case that uses it. A passthrough command becomes collecting, which is a reshape.
 
-A change that touches a file outside its kind's list is a reshape: plan it with steps 1 to 6. Then run step 5 against the feature folder, and update the command's flow file (step 6).
+A change that touches a file outside its kind's list is a reshape: plan it with steps 1 to 6. Then plan and write the tests for the files the flag touched (`references/testing.md`), run step 5 against the feature folder, and update the command's flow file (step 6).
 
 ## Adding a use case to an existing command
 
 A use case the performer needs after the command exists comes from `nnscaffold cli add-use-case`, never by hand.
 
 1. Write a spec file that holds a `useCases` list, in the same shape as step 2b: `name` as the full type name, each dependency's `{ name, type, from }`, and the `method`'s signature. It may also hold `imports` and `knownTypes`. Any other section stops the run, because those belong to `add-command`. One file can list several use cases for the same command.
-2. Run it with `--preview` and show the list as the plan.
+2. Run it with `--preview` and show the list as the plan, with the test plan for each use case and the performer (`references/testing.md`).
 3. Run it without `--preview`.
 
 Every use case is checked before anything is written. The run stops, writing nothing, when:
@@ -282,4 +283,4 @@ When all three hold, the run adds every new property, `init` parameter, construc
 
 A new dependency is built once (universal rule 5) when its `name` and `from` match another new use case's or an argument already in `makeWorkflow()`. An existing `let <name> = <from>` is reused. An inline `<name>: <from>` argument becomes a `let` before `return .init(`, and every place that built it passes `<name>`. A `from` built under a different name, or a `let <name>` that holds a different expression, stays inline. On the print path, the `let` and the arguments to replace are printed first.
 
-Then write each use case's method body and call it from the performer, run step 5 against the feature folder, and update the command's flow file (step 6).
+Then write each use case's method body and call it from the performer, write the planned tests, run step 5 against the feature folder, and update the command's flow file (step 6).

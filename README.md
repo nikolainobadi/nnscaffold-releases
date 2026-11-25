@@ -30,6 +30,21 @@ nnscaffold cli add-architecture-tests
 
 This replaces the tool's generated architecture checks regardless of its architecture marker, without asking for confirmation, including when no terminal is available. This command no longer accepts `--ignore-architecture`; remove that flag from scripts and invocations. Use `--preview` to review the planned changes first. Generated checks require NnArgumentParser 3.0.0 or later and flag commands conforming to `NnFormattedWorkflowCommand` or `NnCustomResultsWorkflowCommand`, as well as commands that implement their own `handleResults`. Replace flagged production imports with their testing modules and add any missing testing modules to the test target's dependencies.
 
+When adding or reshaping commands with `nn-cli-architecture`, include a test plan covering the affected behavior, including flag and use-case changes. Write and run the planned tests as part of completing the work.
+
+## macOS app setup
+
+`nnscaffold macos init` sets up a new Xcode project as a macOS app: it moves the app folder into the standard layout, adds an `AppLauncher` and blank `TestApp` for unit tests, creates UI and Testing packages and any missing unit and UI test targets, and links the packages to the appropriate targets. It also installs the NnSwiftUIKit and NnTesting skills when the `claude` command is available.
+
+Run it from the project folder with Xcode closed. The project must use Xcode's JSON project format and a synchronized app folder with the original app files. Commit or stash changes in the app folder and project first. The app and generated packages target macOS 26; the app uses Swift 6 and treats warnings as errors.
+
+```sh
+nnscaffold macos init --preview
+nnscaffold macos init --bundle-id com.example.MyApp
+```
+
+`--preview` shows the planned changes without writing files or installing skills. Replace `com.example.MyApp` with your app's bundle identifier; omit `--bundle-id` to choose interactively.
+
 ## Releases
 
 Builds and release notes for every version are on the [releases page](https://github.com/nikolainobadi/nnscaffold-releases/releases).

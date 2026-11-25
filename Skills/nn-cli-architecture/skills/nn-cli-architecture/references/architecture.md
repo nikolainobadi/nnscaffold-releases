@@ -11,7 +11,7 @@ Structural reference for a Swift command-line tool on NnArgumentParser. Rules in
 5. Module boundaries
 6. Errors
 7. Folder layout
-8. Testing shape
+8. Test layout
 
 ---
 
@@ -251,21 +251,12 @@ Rules:
 - Every leaf command has a flow file at `<tool>/Flows/<command path>.md`, at the package root beside `Sources/`, never inside it. A group is a folder in `Flows/`. Its format is in `references/flow-format.md`, and a feature's removal removes its flow file too.
 - Any other value type that is not a stage payload, such as a value an interpreter builds and hands to its helpers, goes in `Models/` of the feature that uses it. When a second feature uses it, it moves to the `Models/` of the closest `Shared/`, like any other file. If Findings or Brief starts holding it, it becomes a payload part under section 4.
 
-## 8. Testing shape
+## 8. Test layout
 
-Four kinds of test, in order of preference. Read `TestingReference.md` in the NnArgumentParser skill for the API before writing any of them.
+Which tests a command gets and how they are written is in `references/testing.md`. This section holds where tests live and the tests `nnscaffold` generates.
 
-1. **Interpreters as pure functions.** Build the facts (or findings, requirements, answers) by hand, call `interpret`, assert on the result or the thrown `<Feature>Error`. No mocks needed.
-2. **Workflow wiring.** Build a `<Feature>Workflow` with `MockInspector`, `MockCollector`, and `MockPerformer` around the real interpreters, run it, and assert on `capturedRequirements` and `capturedBriefs`.
-3. **Whole command.** Drive the root with `try await testRun`, passing the test factory vending mock infrastructure, the command's arguments, and the interaction mode explicitly; assert on the captured `NnOutput` output or on what the mocks recorded. Progress written through a display is not captured; the test factory vends `MockProgressDisplay` from the `ConsoleProgressTesting` product, and the test asserts on what it recorded (`trackedTitles`, each activity's `updates` and `outcome`, `notes`). A use-case test injects its own `MockProgressDisplay` the same way. A tracked inspector's title shows up in `trackedTitles` on the factory's display, and the inspector's own tests need no mock display. Interrupt cleanups are tested through `testRunCapturingCleanups`, which returns them without running them; run them and assert `terminalWasRestored` on the factory's display.
-4. **Performers and use cases.** Test each use case for its own knowledge, through its public surface, with real collaborators and mocks only for what fronts something outside the program. Test a performer only for its sequence: the order of its steps, what each step receives, and that a failure stops the steps after it. The Testing section of the `nn-architecture` skill has the rule.
-
-Tests live in `Tests/<tool>Tests/`, mirroring the path below `Sources/<tool>/`: `Tests/<tool>Tests/Features/<Feature>/`, or `Tests/<tool>Tests/Features/<Group>/<Feature>/` for a grouped command, with the same role subfolders. The test factory and any shared helper live in `Tests/<tool>Tests/Shared/`. Test code may use default parameter values; production code may not.
+Tests live in `Tests/<tool>Tests/`, mirroring the path below `Sources/<tool>/`: `Tests/<tool>Tests/Features/<Feature>/`, or `Tests/<tool>Tests/Features/<Group>/<Feature>/` for a grouped command, with the same role subfolders. The test factory and any shared helper live in `Tests/<tool>Tests/Shared/`.
 
 `Tests/<tool>Tests/Main/FlowFilesTests.swift` fails when a leaf command has no flow file or a flow file has no command (`references/flow-format.md`). `nnscaffold cli init` writes it, and `nnscaffold cli add-flow-tests` adds it to a tool created before flow files. It is generated and never edited.
 
 `Tests/<tool>Tests/Main/ArchitectureRulesTests.swift` fails when the tool breaks a Don't list item marked Checked, except the flow-file item, and each failure names the file and the rule. Its scans read only the tool's own `Sources/`, except items 49, 51, and 52. Item 49's scan reads `Tests/<tool>Tests/`, and finds which production packages have testing versions from a fixed list of shared packages plus the `Exports.swift` files of the Core package's `*Testing` and `*Kit` targets, read when the test runs. Items 51 and 52 read the tool's and the Core package's `Package.swift`; item 51 reads only requirements written as `.package(url:from:)`. `nnscaffold cli init` writes it, and `nnscaffold cli add-architecture-tests` adds it to an existing tool and replaces it when the rules change. It is generated and never edited.
-
-When commands share a `<Concern>Settings`, the test factory has two helpers for it: one that takes every field, for tests that check those fields, and short ones that fix the fields a test does not care about (`make<Concern>Settings(previewRequested:)`). Tests that do not check the shared values use the short helpers, so adding a field to the settings changes only the factory and the tests that check it.
-
-Tests are written when the request asks for them. A workflow step that mentions tests is not permission to add them.

@@ -24,6 +24,16 @@ When a text search of a tool's files can decide an entry's **Behind when** (a na
 
 ## [Unreleased]
 
+## [0.18.0]
+
+### Commands are planned and built with their tests
+
+- **Changed**: A command's plan now includes a test plan, and its tests are written as part of building it. Before, tests were written only when the request asked for them. Test guidance moved from section 8 of `references/architecture.md` into its own file.
+- **Rules**: `references/testing.md`; add-command steps 2a and 5; the completion section of `SKILL.md`.
+- **Generated output**: none.
+- **Behind when**: nothing to change; commands built before this entry may have test files still holding only a `makeSUT`.
+- **Requires catch-up**: no.
+
 ## [0.17.0]
 
 ### Commands conform to NnWorkflowCommand

@@ -70,7 +70,7 @@ The pipeline is inspect → interpret → collect → interpret → perform. The
 | A type is about to be named, or work is about to be split across types | the `nn-architecture` skill and [references/glossary.md](references/glossary.md) before naming or splitting |
 | A file is about to be created or moved | the **Folder layout** and **Stage payload types** sections of [references/architecture.md](references/architecture.md) |
 | A Swift file is about to be written | [references/style.md](references/style.md) |
-| A test is about to be written | the **Testing shape** section of [references/architecture.md](references/architecture.md) |
+| A command's tests are about to be planned or written | [references/testing.md](references/testing.md) |
 | A flow file is about to be written, updated, or reviewed, or the request adds flow files to an existing tool | [references/flow-format.md](references/flow-format.md) |
 | The request is to bring an existing tool up to date with changes to this architecture or to `nnscaffold`, or to list what needs refactoring after them | [Workflows/catch-up.md](Workflows/catch-up.md) before reading the tool's code |
 | The request is to review, audit, or validate an existing tool, feature, or file against this architecture, with no mention of recent changes | [Workflows/review-cli.md](Workflows/review-cli.md) before reading the code under review |
@@ -184,4 +184,4 @@ Each item is marked with how it's enforced. **Generated:** `nnscaffold` produces
 
 ## Completion
 
-A new project is done when the package builds, `Main/` holds the root, factory, context, and `ProgressAwareOutputWriter`, and the first command follows the add-command workflow. An added command is done when every file in its file table exists in the feature folder, every stage type conforms, `makeWorkflow()` (or its group's `<Group>Assembly`) builds every store, use case, client, and shared dependency, the subcommand is registered on its parent, the package builds, the Don't list passes, and its flow file in `Flows/` describes what was built (add-command step 6). Write tests only when the request includes them. Report the files created or changed.
+A new project is done when the package builds, `Main/` holds the root, factory, context, and `ProgressAwareOutputWriter`, and the first command follows the add-command workflow. An added command is done when every file in its file table exists in the feature folder, every stage type conforms, `makeWorkflow()` (or its group's `<Group>Assembly`) builds every store, use case, client, and shared dependency, the subcommand is registered on its parent, the package builds, the Don't list passes, and its flow file in `Flows/` describes what was built (add-command step 6), and the tests in its test plan are written (`references/testing.md`). Report the files created or changed.
